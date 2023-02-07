@@ -27,6 +27,7 @@
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
 #include "task.h"
+#include "queue.h"
 
 /** ARMv7 MPU Details:
  *
@@ -42,10 +43,16 @@
  */
 #define SHARED_MEMORY_SIZE 32
 
+#define QUEUE_LENGTH 3U
+
+#define QUEUE_ITEM_SIZE sizeof(uint8_t)
+
 /**
- * @brief Memory region shared between two tasks.
+ * @brief Memory region shared between three tasks.
  */
 static uint8_t ucSharedMemory[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( SHARED_MEMORY_SIZE ) ) );
+
+static uint8_t ucROMemory[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( SHARED_MEMORY_SIZE ) ) );
 
 /**
  * @brief Memory region used to track Memory Fault intentionally caused by the
@@ -60,6 +67,7 @@ static uint8_t ucSharedMemory[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( SH
  * The reason is that the smallest supported MPU region size is 32 bytes.
  */
 static volatile uint8_t ucROTaskFaultTracker[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( SHARED_MEMORY_SIZE ) ) ) = { 0 };
+
 /*-----------------------------------------------------------*/
 
 /**
@@ -191,6 +199,58 @@ static void prvRWAccessTask( void * pvParameters )
 }
 /*-----------------------------------------------------------*/
 
+/* Task demonstrating queue buffer access requirements */
+static void prvQueueAccessTask( void * pvParameters ) {
+
+	/* Unused parameters. */
+	( void ) pvParameters;
+
+	QueueHandle_t xQueue = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
+
+	/* This address is inaccessible as it falls outside any MPU region */
+	uint8_t (*inaccessibleLocation)[32] = (&(ucROMemory))+33;
+
+	for ( ; ; )
+	{
+		/* Sending succeeds as the buffer falls within a readable MPU region */
+		ucSharedMemory[ 1 ] = 10;
+		BaseType_t result = xQueueSend(xQueue, &(ucSharedMemory[ 1 ]), 0U);
+		/* Verify the send was successful */
+		configASSERT(pdTRUE == result);
+
+		/* Peek succeeds since the buffer is inside a writeable MPU region */
+		result = pdFALSE;
+		result = xQueuePeek(xQueue, &(ucSharedMemory[ 2 ]), 0U);
+		/* Verify the peek was successful and the buffer has been written to */
+		configASSERT(pdTRUE == result);
+		configASSERT(ucSharedMemory[ 2 ] == 10U);
+
+		/* Peek fails as the buffer falls inside a read-only MPU region */
+		result = xQueuePeek(xQueue, &(ucROMemory), 0U);
+		configASSERT(pdFALSE == result);
+		configASSERT( ucROMemory[ 0  ] != 10U);
+
+		/* Receive fails as the buffer falls inside a read-only MPU region */
+		result = pdTRUE;
+		result = xQueueReceive(xQueue, &(ucROMemory), 0U);
+		configASSERT(pdFALSE == result);
+		configASSERT( ucROMemory[ 0 ] != 10U);
+
+		/* Send fails as the buffer is outside any MPU region  */
+		result = pdTRUE;
+		result = xQueueSend(xQueue, inaccessibleLocation, 0U);
+		configASSERT(pdFALSE == result);
+
+		/* Clear ucSharedMemory[ 2 ] value before receiving from the queue */
+		ucSharedMemory[ 2 ] = 0U;
+		/* Receive succeeds as the buffer is inside a writeable MPU region*/
+		result = xQueueReceive(xQueue, &(ucSharedMemory[ 2 ]), 0U);
+		configASSERT(pdTRUE == result);
+		configASSERT(ucSharedMemory[ 2 ] == 10U);
+	}
+}
+/*-----------------------------------------------------------*/
+
 void vStartMPUDemo( void )
 {
 /**
@@ -199,6 +259,7 @@ void vStartMPUDemo( void )
  */
 static StackType_t xROAccessTaskStack[ configMINIMAL_STACK_SIZE ] __attribute__( ( aligned( configMINIMAL_STACK_SIZE * sizeof( StackType_t ) ) ) );
 static StackType_t xRWAccessTaskStack[ configMINIMAL_STACK_SIZE ] __attribute__( ( aligned( configMINIMAL_STACK_SIZE * sizeof( StackType_t ) ) ) );
+static StackType_t xQueueAccessTaskStack[ configMINIMAL_STACK_SIZE ] __attribute__( ( aligned( configMINIMAL_STACK_SIZE * sizeof( StackType_t ) ) ) );
 TaskParameters_t xROAccessTaskParameters =
 {
 	.pvTaskCode		= prvROAccessTask,
@@ -227,12 +288,29 @@ TaskParameters_t xRWAccessTaskParameters =
 							{ 0,				0,					0														},
 						}
 };
+TaskParameters_t xQueueAccessTaskParameters =
+{
+	.pvTaskCode		= prvQueueAccessTask,
+	.pcName			= "QueueAccess",
+	.usStackDepth	= configMINIMAL_STACK_SIZE,
+	.pvParameters	= NULL,
+	.uxPriority		= tskIDLE_PRIORITY,
+	.puxStackBuffer	= xQueueAccessTaskStack,
+	.xRegions		=	{
+							{ ucSharedMemory,	SHARED_MEMORY_SIZE,	portMPU_REGION_READ_WRITE | portMPU_REGION_EXECUTE_NEVER},
+							{ ucROMemory,		SHARED_MEMORY_SIZE,	portMPU_REGION_READ_ONLY | portMPU_REGION_EXECUTE_NEVER	},
+							{ 0,				0,					0														},
+						}
+};
 
 	/* Create an unprivileged task with RO access to ucSharedMemory. */
 	xTaskCreateRestricted( &( xROAccessTaskParameters ), NULL );
 
 	/* Create an unprivileged task with RW access to ucSharedMemory. */
 	xTaskCreateRestricted( &( xRWAccessTaskParameters ), NULL );
+
+	/* Create an unprivileged task with RW access to ucSharedMemory to demonstrate Queuing behavior. */
+	xTaskCreateRestricted( & (xQueueAccessTaskParameters), NULL);
 }
 /*-----------------------------------------------------------*/
 
