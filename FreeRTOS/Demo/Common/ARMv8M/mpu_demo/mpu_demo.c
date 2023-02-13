@@ -27,25 +27,30 @@
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
 #include "task.h"
+#include "queue.h"
 
 /**
  * @brief Size of the shared memory region.
  */
 #define SHARED_MEMORY_SIZE    32
 
+#define QUEUE_LENGTH 3U
+
+#define QUEUE_ITEM_SIZE sizeof(uint8_t)
+
 /**
  * @brief Memory region shared between two tasks.
  */
-static uint8_t ucSharedMemory[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( 32 ) ) );
+static uint8_t ucSharedMemory[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( SHARED_MEMORY_SIZE ) ) );
 #if ( configTOTAL_MPU_REGIONS == 16 )
-    static uint8_t ucSharedMemory1[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( 32 ) ) );
-    static uint8_t ucSharedMemory2[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( 32 ) ) );
-    static uint8_t ucSharedMemory3[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( 32 ) ) );
-    static uint8_t ucSharedMemory4[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( 32 ) ) );
-    static uint8_t ucSharedMemory5[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( 32 ) ) );
-    static uint8_t ucSharedMemory6[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( 32 ) ) );
-    static uint8_t ucSharedMemory7[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( 32 ) ) );
-    static uint8_t ucSharedMemory8[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( 32 ) ) );
+    static uint8_t ucSharedMemory1[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( SHARED_MEMORY_SIZE ) ) );
+    static uint8_t ucSharedMemory2[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( SHARED_MEMORY_SIZE ) ) );
+    static uint8_t ucSharedMemory3[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( SHARED_MEMORY_SIZE ) ) );
+    static uint8_t ucSharedMemory4[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( SHARED_MEMORY_SIZE ) ) );
+    static uint8_t ucSharedMemory5[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( SHARED_MEMORY_SIZE ) ) );
+    static uint8_t ucSharedMemory6[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( SHARED_MEMORY_SIZE ) ) );
+    static uint8_t ucSharedMemory7[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( SHARED_MEMORY_SIZE ) ) );
+    static uint8_t ucSharedMemory8[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( SHARED_MEMORY_SIZE ) ) );
 #endif /* configTOTAL_MPU_REGIONS == 16 */
 
 /**
@@ -60,7 +65,9 @@ static uint8_t ucSharedMemory[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( 32
  * @note We are declaring a region of 32 bytes even though we need only one. The
  * reason is that the size of an MPU region must be a multiple of 32 bytes.
  */
-static uint8_t ucROTaskFaultTracker[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( 32 ) ) ) = { 0 };
+static uint8_t ucROTaskFaultTracker[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( SHARED_MEMORY_SIZE ) ) ) = { 0 };
+
+static uint8_t ucROMemory[ SHARED_MEMORY_SIZE ] __attribute__( ( aligned( SHARED_MEMORY_SIZE ) ) ) = { 0 };
 /*-----------------------------------------------------------*/
 
 /**
@@ -220,10 +227,62 @@ static void prvRWAccessTask( void * pvParameters )
 }
 /*-----------------------------------------------------------*/
 
+/* Task demonstrating queue buffer access requirements */
+static void prvQueueAccessTask( void * pvParameters ) {
+
+    /* Unused parameters. */
+    ( void ) pvParameters;
+
+    QueueHandle_t xQueue = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
+
+    /* This address is inaccessible as it falls outside any MPU region */
+    uint8_t (*inaccessibleLocation)[SHARED_MEMORY_SIZE] = (&(ucROMemory))+33;
+
+    for ( ; ; )
+    {
+        /* Sending succeeds as the buffer falls within a readable MPU region */
+        ucSharedMemory[ 1 ] = 10;
+        BaseType_t result = xQueueSend(xQueue, &(ucSharedMemory[ 1 ]), 0U);
+        /* Verify the send was successful */
+        configASSERT(pdTRUE == result);
+
+        /* Peek succeeds since the buffer is inside a writeable MPU region */
+        result = pdFALSE;
+        result = xQueuePeek(xQueue, &(ucSharedMemory[ 2 ]), 0U);
+        /* Verify the peek was successful and the buffer has been written to */
+        configASSERT(pdTRUE == result);
+        configASSERT(ucSharedMemory[ 2 ] == 10U);
+
+        /* Peek fails as the buffer falls inside a read-only MPU region */
+        result = xQueuePeek(xQueue, &(ucROMemory), 0U);
+        configASSERT(pdFALSE == result);
+        configASSERT( ucROMemory[ 0  ] != 10U);
+
+        /* Receive fails as the buffer falls inside a read-only MPU region */
+        result = pdTRUE;
+        result = xQueueReceive(xQueue, &(ucROMemory), 0U);
+        configASSERT(pdFALSE == result);
+        configASSERT( ucROMemory[ 0 ] != 10U);
+
+        /* Send fails as the buffer is outside any MPU region  */
+        result = pdTRUE;
+        result = xQueueSend(xQueue, inaccessibleLocation, 0U);
+        configASSERT(pdFALSE == result);
+
+        /* Clear ucSharedMemory[ 2 ] value before receiving from the queue */
+        ucSharedMemory[ 2 ] = 0U;
+        /* Receive succeeds as the buffer is inside a writeable MPU region*/
+        result = xQueueReceive(xQueue, &(ucSharedMemory[ 2 ]), 0U);
+        configASSERT(pdTRUE == result);
+        configASSERT(ucSharedMemory[ 2 ] == 10U);
+    }
+}
+/*-----------------------------------------------------------*/
+
 void vStartMPUDemo( void )
 {
-    static StackType_t xROAccessTaskStack[ configMINIMAL_STACK_SIZE ] __attribute__( ( aligned( 32 ) ) );
-    static StackType_t xRWAccessTaskStack[ configMINIMAL_STACK_SIZE ] __attribute__( ( aligned( 32 ) ) );
+    static StackType_t xROAccessTaskStack[ configMINIMAL_STACK_SIZE ] __attribute__( ( aligned( SHARED_MEMORY_SIZE ) ) );
+    static StackType_t xRWAccessTaskStack[ configMINIMAL_STACK_SIZE ] __attribute__( ( aligned( SHARED_MEMORY_SIZE ) ) );
     TaskParameters_t xROAccessTaskParameters =
     {
         .pvTaskCode     = prvROAccessTask,
@@ -234,18 +293,18 @@ void vStartMPUDemo( void )
         .puxStackBuffer = xROAccessTaskStack,
         .xRegions       =
         {
-            { ucSharedMemory,       32, tskMPU_REGION_READ_ONLY | tskMPU_REGION_EXECUTE_NEVER  },
+            { ucSharedMemory,       SHARED_MEMORY_SIZE, tskMPU_REGION_READ_ONLY | tskMPU_REGION_EXECUTE_NEVER  },
             #if ( configTOTAL_MPU_REGIONS == 16 )
-            { ucSharedMemory1,      32, tskMPU_REGION_READ_ONLY | tskMPU_REGION_EXECUTE_NEVER  },
-            { ucSharedMemory2,      32, tskMPU_REGION_READ_ONLY | tskMPU_REGION_EXECUTE_NEVER  },
-            { ucSharedMemory3,      32, tskMPU_REGION_READ_ONLY | tskMPU_REGION_EXECUTE_NEVER  },
-            { ucSharedMemory4,      32, tskMPU_REGION_READ_ONLY | tskMPU_REGION_EXECUTE_NEVER  },
-            { ucSharedMemory5,      32, tskMPU_REGION_READ_ONLY | tskMPU_REGION_EXECUTE_NEVER  },
-            { ucSharedMemory6,      32, tskMPU_REGION_READ_ONLY | tskMPU_REGION_EXECUTE_NEVER  },
-            { ucSharedMemory7,      32, tskMPU_REGION_READ_ONLY | tskMPU_REGION_EXECUTE_NEVER  },
-            { ucSharedMemory8,      32, tskMPU_REGION_READ_ONLY | tskMPU_REGION_EXECUTE_NEVER  },
+            { ucSharedMemory1,      SHARED_MEMORY_SIZE, tskMPU_REGION_READ_ONLY | tskMPU_REGION_EXECUTE_NEVER  },
+            { ucSharedMemory2,      SHARED_MEMORY_SIZE, tskMPU_REGION_READ_ONLY | tskMPU_REGION_EXECUTE_NEVER  },
+            { ucSharedMemory3,      SHARED_MEMORY_SIZE, tskMPU_REGION_READ_ONLY | tskMPU_REGION_EXECUTE_NEVER  },
+            { ucSharedMemory4,      SHARED_MEMORY_SIZE, tskMPU_REGION_READ_ONLY | tskMPU_REGION_EXECUTE_NEVER  },
+            { ucSharedMemory5,      SHARED_MEMORY_SIZE, tskMPU_REGION_READ_ONLY | tskMPU_REGION_EXECUTE_NEVER  },
+            { ucSharedMemory6,      SHARED_MEMORY_SIZE, tskMPU_REGION_READ_ONLY | tskMPU_REGION_EXECUTE_NEVER  },
+            { ucSharedMemory7,      SHARED_MEMORY_SIZE, tskMPU_REGION_READ_ONLY | tskMPU_REGION_EXECUTE_NEVER  },
+            { ucSharedMemory8,      SHARED_MEMORY_SIZE, tskMPU_REGION_READ_ONLY | tskMPU_REGION_EXECUTE_NEVER  },
             #endif /* configTOTAL_MPU_REGIONS == 16 */
-            { ucROTaskFaultTracker, 32, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
+            { ucROTaskFaultTracker, SHARED_MEMORY_SIZE, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
             { 0,                    0,  0                                                      },
         }
     };
@@ -259,18 +318,44 @@ void vStartMPUDemo( void )
         .puxStackBuffer = xRWAccessTaskStack,
         .xRegions       =
         {
-            { ucSharedMemory,  32, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
+            { ucSharedMemory,  SHARED_MEMORY_SIZE, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
             #if ( configTOTAL_MPU_REGIONS == 16 )
-            { ucSharedMemory1, 32, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
-            { ucSharedMemory2, 32, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
-            { ucSharedMemory3, 32, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
-            { ucSharedMemory4, 32, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
-            { ucSharedMemory5, 32, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
-            { ucSharedMemory6, 32, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
-            { ucSharedMemory7, 32, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
-            { ucSharedMemory8, 32, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
+            { ucSharedMemory1, SHARED_MEMORY_SIZE, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
+            { ucSharedMemory2, SHARED_MEMORY_SIZE, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
+            { ucSharedMemory3, SHARED_MEMORY_SIZE, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
+            { ucSharedMemory4, SHARED_MEMORY_SIZE, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
+            { ucSharedMemory5, SHARED_MEMORY_SIZE, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
+            { ucSharedMemory6, SHARED_MEMORY_SIZE, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
+            { ucSharedMemory7, SHARED_MEMORY_SIZE, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
+            { ucSharedMemory8, SHARED_MEMORY_SIZE, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
             #endif /* configTOTAL_MPU_REGIONS == 16 */
             { 0,               0,  0                                                      },
+            { 0,               0,  0                                                      },
+        }
+    };
+
+    TaskParameters_t xQueueAccessTaskParameters =
+    {
+        .pvTaskCode      = prvQueueAccessTask,
+        .pcName          = "QueueAccess",
+        .usStackDepth    = configMINIMAL_STACK_SIZE,
+        .pvParameters    = NULL,
+        .uxPriority      = tskIDLE_PRIORITY,
+        .puxStackBuffer  = xQueueAccessTaskStack,
+        .xRegions        =
+        {
+            { ucSharedMemory, SHARED_MEMORY_SIZE, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER  },
+            #if ( configTOTAL_MPU_REGIONS == 16 )
+            { ucSharedMemory1, SHARED_MEMORY_SIZE, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
+            { ucSharedMemory2, SHARED_MEMORY_SIZE, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
+            { ucSharedMemory3, SHARED_MEMORY_SIZE, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
+            { ucSharedMemory4, SHARED_MEMORY_SIZE, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
+            { ucSharedMemory5, SHARED_MEMORY_SIZE, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
+            { ucSharedMemory6, SHARED_MEMORY_SIZE, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
+            { ucSharedMemory7, SHARED_MEMORY_SIZE, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
+            { ucSharedMemory8, SHARED_MEMORY_SIZE, tskMPU_REGION_READ_WRITE | tskMPU_REGION_EXECUTE_NEVER },
+            #endif /* configTOTAL_MPU_REGIONS == 16 */
+            { ucROMemory,      SHARED_MEMORY_SIZE, tskMPU_REGION_READ_ONLY | tskMPU_REGION_EXECUTE_NEVER   },
             { 0,               0,  0                                                      },
         }
     };
@@ -280,6 +365,9 @@ void vStartMPUDemo( void )
 
     /* Create an unprivileged task with RW access to ucSharedMemory. */
     xTaskCreateRestricted( &( xRWAccessTaskParameters ), NULL );
+
+    /* Create an unprivileged task with RW access to ucSharedMemory to demonstrate Queuing behavior. */
+	xTaskCreateRestricted( & (xQueueAccessTaskParameters), NULL);
 }
 /*-----------------------------------------------------------*/
 
