@@ -283,6 +283,7 @@ void vStartMPUDemo( void )
 {
     static StackType_t xROAccessTaskStack[ configMINIMAL_STACK_SIZE ] __attribute__( ( aligned( SHARED_MEMORY_SIZE ) ) );
     static StackType_t xRWAccessTaskStack[ configMINIMAL_STACK_SIZE ] __attribute__( ( aligned( SHARED_MEMORY_SIZE ) ) );
+    static StackType_t xQueueAccessTaskStack[ configMINIMAL_STACK_SIZE ] __attribute__( ( aligned( SHARED_MEMORY_SIZE ) ) );
     TaskParameters_t xROAccessTaskParameters =
     {
         .pvTaskCode     = prvROAccessTask,
