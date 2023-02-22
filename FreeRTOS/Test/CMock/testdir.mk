@@ -38,6 +38,7 @@ MOCK_OBJ_LIST   :=  $(addprefix $(SCRATCH_DIR)/,$(MOCK_OBJ))
 CPPFLAGS        +=  -I$(MOCKS_DIR)
 
 # Kernel files under test
+PROJ_SRC_DIR   :=   $(dir $(PROJECT_SRC))
 PROJ_SRC_LIST   :=  $(addprefix $(KERNEL_DIR)/,$(PROJECT_SRC))
 PROJ_PP_LIST    :=  $(addprefix $(PROJ_DIR)/,$(PROJECT_SRC:.c=.i))
 PROJ_OBJ_LIST   :=  $(addprefix $(PROJ_DIR)/,$(PROJECT_SRC:.c=.o))
@@ -73,7 +74,8 @@ NO_DELETE : $(MOCK_HDR_LIST) $(MOCK_SRC_LIST) $(MOCK_OBJ_LIST)      \
 # preprocess proj files to expand macros for coverage
 $(PROJ_DIR)/%.i : $(KERNEL_DIR)/%.c
     mkdir -p $(PROJ_DIR)
-    $(CC) -E $< $(CPPFLAGS) -o $@
+    mkdir -p $(PROJ_DIR)/$(PROJ_SRC_DIR)
+    $(CC) -E $< $(CPPFLAGS) $(TEST_ONLY_CPPFLAGS) -o $@
 
 # compile the project objects with coverage instrumented
 $(PROJ_DIR)/%.o : $(PROJ_DIR)/%.i
@@ -81,7 +83,7 @@ $(PROJ_DIR)/%.o : $(PROJ_DIR)/%.i
 
 # Build mock objects
 $(SCRATCH_DIR)/mock_%.o : $(MOCKS_DIR)/mock_%.c
-    $(CC) -c $< $(CPPFLAGS) $(CFLAGS) -o $@
+    $(CC) -c $< $(CPPFLAGS) $(CFLAGS) $(MOCK_ONLY_CPPFLAGS) -o $@
 
 # compile unit tests
 $(SCRATCH_DIR)/%_utest.o : $(SUITE_DIR)/%_utest.c $(MOCK_HDR_LIST) $(LIBS_LIST)

@@ -127,6 +127,10 @@ typedef unsigned long    UBaseType_t;
 #define portYIELD_WITHIN_API()           vFakePortYieldWithinAPI()
 #define portYIELD_FROM_ISR()             vFakePortYieldFromISR()
 
+#define portIS_PRIVILEGED()              vFakePortIsPrivilege()
+#define portRAISE_PRIVILEGE()            vFakePortRaisePrivilege()
+#define portRESET_PRIVILEGE()            vFakePortResetPrivilege()
+
 /* Critical section handling. */
 #define portDISABLE_INTERRUPTS()         vFakePortDisableInterrupts()
 #define portENABLE_INTERRUPTS()          vFakePortEnableInterrupts()
@@ -173,6 +177,24 @@ static uint8_t ucPortCountLeadingZeros( uint32_t ulBitmap )
     void vFunction( void * ( pvParameters ) )
 
 /*-----------------------------------------------------------*/
+
+/**
+ * @brief Settings to define an MPU region.
+ */
+typedef struct MPURegionSettings
+{
+    uint32_t ulRBAR;     /**< RBAR for the region. */
+    uint32_t ulRLAR;     /**< RLAR for the region. */
+} MPURegionSettings_t;
+
+/**
+ * @brief MPU settings as stored in the TCB.
+ */
+typedef struct MPU_SETTINGS
+{
+    uint32_t ulMAIR0;                                                  /**< MAIR0 for the task containing attributes for all the 4 per task regions. */
+    MPURegionSettings_t xRegionsSettings[ 4 ];                         /**< Settings for 4 per task regions. */
+} xMPU_SETTINGS;
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus

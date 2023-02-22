@@ -32,8 +32,10 @@ clean :
 libs :
     make -C $(UT_ROOT_DIR) libs
 
+# Do not remove line 38 (the blank one) or this function will only run one unit test from a list of test binaries
 define run-test
 $(1)
+
 endef
 
 $(PROJ_GCDA_LIST) : $(EXEC_LIST)

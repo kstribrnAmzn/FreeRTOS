@@ -23,32 +23,18 @@
  * https://github.com/FreeRTOS
  *
  */
+/*! @file privilege_helper.c */
 
-#ifndef FAKE_PORT_H
-#define FAKE_PORT_H
+#include "privilege_helper.h"
 
-void vFakePortYield( void );
-void vFakePortYieldFromISR( void );
-void vFakePortYieldWithinAPI( void );
+void unprivilegedTask_raisesAndLowersPrivilege( void )
+{
+    vFakePortIsPrivilege_IgnoreAndReturn( pdFALSE );
+    vFakePortRaisePrivilege_Ignore();
+    vFakePortResetPrivilege_Ignore();
+}
 
-BaseType_t vFakePortIsPrivilege( void );
-void vFakePortRaisePrivilege( void );
-void vFakePortResetPrivilege( void );
-
-void vFakePortDisableInterrupts( void );
-void vFakePortEnableInterrupts( void );
-void vFakePortClearInterruptMaskFromISR( UBaseType_t uxNewMaskValue );
-void vFakePortClearInterruptMask( UBaseType_t uxNewMaskValue );
-UBaseType_t ulFakePortSetInterruptMaskFromISR( void );
-UBaseType_t ulFakePortSetInterruptMask( void );
-
-void vFakePortAssertIfInterruptPriorityInvalid( void );
-
-void vFakePortEnterCriticalSection( void );
-void vFakePortExitCriticalSection( void );
-void vPortCurrentTaskDying( void * pxTaskToDelete,
-                            volatile BaseType_t * pxPendYield );
-void portSetupTCB_CB( void * tcb );
-void vFakePortAssertIfISR();
-
-#endif /* FAKE_PORT_H */
+void privilegedTask_retainsPrivilege( void )
+{
+    vFakePortIsPrivilege_IgnoreAndReturn( pdTRUE );
+}
