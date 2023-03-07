@@ -36,9 +36,9 @@ MOCK_FILES_FP   +=  $(UT_ROOT_DIR)/config/fake_port.h
 MOCK_FILES_FP   +=  $(UT_ROOT_DIR)/mpu/local_portable.h
 
 # List any addiitonal flags needed by the preprocessor
-CPPFLAGS              += 
+CPPFLAGS              +=
 TEST_ONLY_CPPFLAGS    :=   -DportUSING_MPU_WRAPPERS=1
-MOCK_ONLY_CPPFLAGS    :=   -DportUSING_MPU_WRAPPERS=0                       
+MOCK_ONLY_CPPFLAGS    :=   -DportUSING_MPU_WRAPPERS=0
 
 # List any addiitonal flags needed by the compiler
 CFLAGS              += -Wno-unused-function -Wno-unused-variable
