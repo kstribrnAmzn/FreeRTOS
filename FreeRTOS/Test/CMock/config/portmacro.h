@@ -183,8 +183,8 @@ static uint8_t ucPortCountLeadingZeros( uint32_t ulBitmap )
  */
 typedef struct MPURegionSettings
 {
-    uint32_t ulRBAR;     /**< RBAR for the region. */
-    uint32_t ulRLAR;     /**< RLAR for the region. */
+    uint32_t ulRBAR; /**< RBAR for the region. */
+    uint32_t ulRLAR; /**< RLAR for the region. */
 } MPURegionSettings_t;
 
 /**
@@ -192,8 +192,8 @@ typedef struct MPURegionSettings
  */
 typedef struct MPU_SETTINGS
 {
-    uint32_t ulMAIR0;                                                  /**< MAIR0 for the task containing attributes for all the 4 per task regions. */
-    MPURegionSettings_t xRegionsSettings[ 4 ];                         /**< Settings for 4 per task regions. */
+    uint32_t ulMAIR0;                          /**< MAIR0 for the task containing attributes for all the 4 per task regions. */
+    MPURegionSettings_t xRegionsSettings[ 4 ]; /**< Settings for 4 per task regions. */
 } xMPU_SETTINGS;
 
 /* *INDENT-OFF* */
