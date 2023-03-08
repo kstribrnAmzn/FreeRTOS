@@ -53,9 +53,13 @@
 /* ===============================  CONSTANTS =============================== */
 static const TimerHandle_t xHandle = NULL;
 static const TickType_t xSingleTickIncrement = 1U;
-static BaseType_t * const xPriorityWoken;
+static BaseType_t const xPriorityWoken = ( BaseType_t ) 4U;
+static BaseType_t * const pxPriorityWoken = ( BaseType_t * const ) &xPriorityWoken;
+static void * pvTimerID = NULL;
+
 /* ============================  GLOBAL VARIABLES =========================== */
 static BaseType_t xResult;
+
 /* ==========================  CALLBACK FUNCTIONS =========================== */
 void vApplicationGetIdleTaskMemory( StaticTask_t ** x,
                                     StackType_t ** y,
@@ -87,7 +91,6 @@ void vApplicationDaemonTaskStartupHook( void )
 }
 
 /* ============================= Unity Fixtures ============================= */
-
 void setUp( void )
 {
 }
@@ -96,7 +99,7 @@ void tearDown( void )
 {
 }
 
-void suiteSetUp()
+void suiteSetUp( void )
 {
 }
 
@@ -107,35 +110,72 @@ int suiteTearDown( int numFailures )
 
 /* ==========================  Helper functions =========================== */
 
-
 /* =============================  Test Cases ============================== */
 
-void test_xTimerGenericCommand_unprivileged_accessibleWokenBuffer()
+void test_vTimerSetTimerID_unprivileged_accessibleID( void )
 {
     unprivilegedTask_raisesAndLowersPrivilege();
-    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( xPriorityWoken, sizeof( BaseType_t ), tskMPU_WRITE_PERMISSION, pdTRUE );
-    xTimerGenericCommand_ExpectAndReturn( xHandle, tmrCOMMAND_START, xSingleTickIncrement, xPriorityWoken, xSingleTickIncrement, pdTRUE );
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pvTimerID, 1U, tskMPU_READ_PERMISSION, pdTRUE );
+    /* This validates the ID pointer passed in */
+    vTimerSetTimerID_Expect( xHandle, pvTimerID );
 
-    xResult = MPU_xTimerGenericCommand( xHandle, tmrCOMMAND_START, xSingleTickIncrement, xPriorityWoken, xSingleTickIncrement );
+    MPU_vTimerSetTimerID( xHandle, pvTimerID );
+}
+
+void test_vTimerSetTimerID_unprivileged_inaccessibleID( void )
+{
+    unprivilegedTask_raisesAndLowersPrivilege();
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pvTimerID, 1U, tskMPU_READ_PERMISSION, pdFALSE );
+
+    MPU_vTimerSetTimerID( xHandle, pvTimerID );
+}
+
+void test_vTimerSetTimerID_privileged( void )
+{
+    privilegedTask_retainsPrivilege();
+    /* This validates the ID pointer passed in */
+    vTimerSetTimerID_Expect( xHandle, pvTimerID );
+
+    MPU_vTimerSetTimerID( xHandle, pvTimerID );
+}
+
+void test_xTimerGenericCommand_unprivileged_accessibleWokenBuffer( void )
+{
+    unprivilegedTask_raisesAndLowersPrivilege();
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pxPriorityWoken, sizeof( BaseType_t ), tskMPU_WRITE_PERMISSION, pdTRUE );
+    xTimerGenericCommand_ExpectAndReturn( xHandle, tmrCOMMAND_START, xSingleTickIncrement, pxPriorityWoken, xSingleTickIncrement, pdTRUE );
+
+    xResult = MPU_xTimerGenericCommand( xHandle, tmrCOMMAND_START, xSingleTickIncrement, pxPriorityWoken, xSingleTickIncrement );
     TEST_ASSERT_EQUAL( pdTRUE, xResult );
 }
 
-void test_xTimerGenericCommand_unprivileged_inaccessibleWokenBuffer()
+void test_xTimerGenericCommand_unprivileged_nullHigherPriorityWoken( void )
+{
+    BaseType_t * const nullPriorityWoken = NULL;
+
+    unprivilegedTask_raisesAndLowersPrivilege();
+    xTimerGenericCommand_ExpectAndReturn( xHandle, tmrCOMMAND_START, xSingleTickIncrement, nullPriorityWoken, xSingleTickIncrement, pdTRUE );
+
+    xResult = MPU_xTimerGenericCommand( xHandle, tmrCOMMAND_START, xSingleTickIncrement, nullPriorityWoken, xSingleTickIncrement );
+    TEST_ASSERT_EQUAL( pdTRUE, xResult );
+}
+
+void test_xTimerGenericCommand_unprivileged_inaccessibleWokenBuffer( void )
 {
     unprivilegedTask_raisesAndLowersPrivilege();
-    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( xPriorityWoken, sizeof( BaseType_t ), tskMPU_WRITE_PERMISSION, pdFALSE );
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pxPriorityWoken, sizeof( BaseType_t ), tskMPU_WRITE_PERMISSION, pdFALSE );
 
-    xResult = MPU_xTimerGenericCommand( xHandle, tmrCOMMAND_START, xSingleTickIncrement, xPriorityWoken, xSingleTickIncrement );
+    xResult = MPU_xTimerGenericCommand( xHandle, tmrCOMMAND_START, xSingleTickIncrement, pxPriorityWoken, xSingleTickIncrement );
 
     TEST_ASSERT_EQUAL( pdFALSE, xResult );
 }
 
-void test_xTimerGenericCommand_privileged()
+void test_xTimerGenericCommand_privileged( void )
 {
     privilegedTask_retainsPrivilege();
-    xTimerGenericCommand_ExpectAndReturn( xHandle, tmrCOMMAND_START, xSingleTickIncrement, xPriorityWoken, xSingleTickIncrement, pdTRUE );
+    xTimerGenericCommand_ExpectAndReturn( xHandle, tmrCOMMAND_START, xSingleTickIncrement, pxPriorityWoken, xSingleTickIncrement, pdTRUE );
 
-    xResult = MPU_xTimerGenericCommand( xHandle, tmrCOMMAND_START, xSingleTickIncrement, xPriorityWoken, xSingleTickIncrement );
+    xResult = MPU_xTimerGenericCommand( xHandle, tmrCOMMAND_START, xSingleTickIncrement, pxPriorityWoken, xSingleTickIncrement );
 
     TEST_ASSERT_EQUAL( pdTRUE, xResult );
 }

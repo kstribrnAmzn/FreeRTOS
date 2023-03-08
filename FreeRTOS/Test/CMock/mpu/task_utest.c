@@ -61,6 +61,7 @@ static const configRUN_TIME_COUNTER_TYPE ulTaskStatusRunTimeCounter = 999U;
 static const StackType_t * pxTaskStatusStackBase = ( StackType_t * ) 10U;
 static const configSTACK_DEPTH_TYPE usTaskStatusHighWaterMark = ( configSTACK_DEPTH_TYPE ) 100U;
 static const configSTACK_DEPTH_TYPE usHigherHighWaterMark = ( configSTACK_DEPTH_TYPE ) 1234U;
+static const BaseType_t firstIndex = 1U;
 
 /* ============================  GLOBAL VARIABLES =========================== */
 static BaseType_t xResult;
@@ -71,6 +72,7 @@ static TimeOut_t * pxTimeOut = NULL;
 static TaskHandle_t xHandle = NULL;
 static TaskStatus_t xTaskStatus;
 static TaskStatus_t * pxTaskStatus = &xTaskStatus;
+static void * pvParameter = NULL;
 
 /* ==========================  CALLBACK FUNCTIONS =========================== */
 void vApplicationGetIdleTaskMemory( StaticTask_t ** x,
@@ -103,7 +105,6 @@ void vApplicationDaemonTaskStartupHook( void )
 }
 
 /* ============================= Unity Fixtures ============================= */
-
 void setUp( void )
 {
 }
@@ -112,7 +113,7 @@ void tearDown( void )
 {
 }
 
-void suiteSetUp()
+void suiteSetUp( void )
 {
 }
 
@@ -195,7 +196,7 @@ static void taskGetInfoStub( TaskHandle_t xHandle,
 
 /* =============================  Test Cases ============================== */
 
-void test_vTaskDelayUntil_unprivileged_accessiblePreviousWakeTime()
+void test_vTaskDelayUntil_unprivileged_accessiblePreviousWakeTime( void )
 {
     unprivilegedTask_raisesAndLowersPrivilege();
     xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( &xPreviousWakeTime, sizeof( TickType_t ), tskMPU_WRITE_PERMISSION, pdTRUE );
@@ -206,7 +207,7 @@ void test_vTaskDelayUntil_unprivileged_accessiblePreviousWakeTime()
     TEST_ASSERT_EQUAL( pdTRUE, xResult );
 }
 
-void test_vTaskDelayUntil_unprivileged_inaccessiblePreviousWakeTime()
+void test_vTaskDelayUntil_unprivileged_inaccessiblePreviousWakeTime( void )
 {
     unprivilegedTask_raisesAndLowersPrivilege();
     xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( &xPreviousWakeTime, sizeof( TickType_t ), tskMPU_WRITE_PERMISSION, pdFALSE );
@@ -215,7 +216,7 @@ void test_vTaskDelayUntil_unprivileged_inaccessiblePreviousWakeTime()
     TEST_ASSERT_EQUAL( pdFALSE, xResult );
 }
 
-void test_vTaskDelayUntil_privileged()
+void test_vTaskDelayUntil_privileged( void )
 {
     privilegedTask_retainsPrivilege();
     xTaskDelayUntil_ExpectAndReturn( &xPreviousWakeTime, xSingleTick, pdTRUE );
@@ -224,7 +225,7 @@ void test_vTaskDelayUntil_privileged()
     TEST_ASSERT_EQUAL( pdTRUE, xResult );
 }
 
-void test_vTaskGetInfo_unprivileged_accessibleTaskStatus()
+void test_vTaskGetInfo_unprivileged_accessibleTaskStatus( void )
 {
     initTaskStatus( pxTaskStatus );
     unprivilegedTask_raisesAndLowersPrivilege();
@@ -235,7 +236,7 @@ void test_vTaskGetInfo_unprivileged_accessibleTaskStatus()
     assertTaskStatusIsModified( pxTaskStatus, eBlocked, true );
 }
 
-void test_vTaskGetInfo_unprivileged_inaccessibleTaskStatus()
+void test_vTaskGetInfo_unprivileged_inaccessibleTaskStatus( void )
 {
     unprivilegedTask_raisesAndLowersPrivilege();
     xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pxTaskStatus, sizeof( TaskStatus_t ), tskMPU_WRITE_PERMISSION, pdFALSE );
@@ -243,7 +244,7 @@ void test_vTaskGetInfo_unprivileged_inaccessibleTaskStatus()
     MPU_vTaskGetInfo( xHandle, pxTaskStatus, pdFALSE, eInvalid );
 }
 
-void test_vTaskGetInfo_privileged()
+void test_vTaskGetInfo_privileged( void )
 {
     initTaskStatus( pxTaskStatus );
     privilegedTask_retainsPrivilege();
@@ -253,24 +254,24 @@ void test_vTaskGetInfo_privileged()
     assertTaskStatusIsModified( pxTaskStatus, eSuspended, false );
 }
 
-void test_vTaskList_unprivileged_accessibleBuffer()
+void test_vTaskList_unprivileged_accessibleBuffer( void )
 {
     unprivilegedTask_raisesAndLowersPrivilege();
-    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pcBuffer, sizeof( char * ), tskMPU_WRITE_PERMISSION, pdTRUE );
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pcBuffer, sizeof( char ), tskMPU_WRITE_PERMISSION, pdTRUE );
     vTaskList_Ignore();
 
     MPU_vTaskList( pcBuffer );
 }
 
-void test_vTaskList_unprivileged_inaccessibleBuffer()
+void test_vTaskList_unprivileged_inaccessibleBuffer( void )
 {
     unprivilegedTask_raisesAndLowersPrivilege();
-    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pcBuffer, sizeof( char * ), tskMPU_WRITE_PERMISSION, pdFALSE );
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pcBuffer, sizeof( char ), tskMPU_WRITE_PERMISSION, pdFALSE );
 
     MPU_vTaskList( pcBuffer );
 }
 
-void test_vTaskList_privileged()
+void test_vTaskList_privileged( void )
 {
     privilegedTask_retainsPrivilege();
     vTaskList_Ignore();
@@ -278,24 +279,24 @@ void test_vTaskList_privileged()
     MPU_vTaskList( pcBuffer );
 }
 
-void test_vTaskGetRunTimeStats_unprivileged_accessibleBuffer()
+void test_vTaskGetRunTimeStats_unprivileged_accessibleBuffer( void )
 {
     unprivilegedTask_raisesAndLowersPrivilege();
-    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pcBuffer, sizeof( char * ), tskMPU_WRITE_PERMISSION, pdTRUE );
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pcBuffer, sizeof( char ), tskMPU_WRITE_PERMISSION, pdTRUE );
     vTaskGetRunTimeStats_Ignore();
 
     MPU_vTaskGetRunTimeStats( pcBuffer );
 }
 
-void test_vTaskGetRunTimeStats_unprivileged_inaccessibleBuffer()
+void test_vTaskGetRunTimeStats_unprivileged_inaccessibleBuffer( void )
 {
     unprivilegedTask_raisesAndLowersPrivilege();
-    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pcBuffer, sizeof( char * ), tskMPU_WRITE_PERMISSION, pdFALSE );
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pcBuffer, sizeof( char ), tskMPU_WRITE_PERMISSION, pdFALSE );
 
     MPU_vTaskGetRunTimeStats( pcBuffer );
 }
 
-void test_vTaskGetRunTimeStats_privileged()
+void test_vTaskGetRunTimeStats_privileged( void )
 {
     privilegedTask_retainsPrivilege();
     vTaskGetRunTimeStats_Ignore();
@@ -303,7 +304,123 @@ void test_vTaskGetRunTimeStats_privileged()
     MPU_vTaskGetRunTimeStats( pcBuffer );
 }
 
-void test_vTaskSetTimeOutState_unprivileged_accessibleBuffer()
+void test_xTaskCallApplicationTaskHook_unprivileged_accessibleParameters( void )
+{
+    unprivilegedTask_raisesAndLowersPrivilege();
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pvParameter, 1U, tskMPU_WRITE_PERMISSION | tskMPU_READ_PERMISSION, pdTRUE );
+    xTaskCallApplicationTaskHook_ExpectAndReturn( xHandle, pvParameter, pdTRUE );
+
+    MPU_xTaskCallApplicationTaskHook( xHandle, pvParameter );
+}
+
+void test_xTaskCallApplicationTaskHook_unprivileged_inaccessibleParameters( void )
+{
+    unprivilegedTask_raisesAndLowersPrivilege();
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pvParameter, 1U, tskMPU_WRITE_PERMISSION | tskMPU_READ_PERMISSION, pdFALSE );
+
+    MPU_xTaskCallApplicationTaskHook( xHandle, pvParameter );
+}
+
+void test_xTaskCallApplicationTaskHook_privileged( void )
+{
+    privilegedTask_retainsPrivilege();
+    xTaskCallApplicationTaskHook_ExpectAndReturn( xHandle, pvParameter, pdTRUE );
+
+    MPU_xTaskCallApplicationTaskHook( xHandle, pvParameter );
+}
+
+/* Note - these tests only cover when runtime stats are enabled */
+void test_uxTaskGetSystemState_unprivileged_accessibleStatusArrayAndRuntime( void )
+{
+    UBaseType_t arraySize = 10U;
+    uint32_t arrayByteSize = arraySize * sizeof( TaskStatus_t );
+
+    unprivilegedTask_raisesAndLowersPrivilege();
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pxTaskStatus, arrayByteSize, tskMPU_WRITE_PERMISSION, pdTRUE );
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( ( configRUN_TIME_COUNTER_TYPE * ) &ulTaskStatusRunTimeCounter, sizeof( configRUN_TIME_COUNTER_TYPE ), tskMPU_WRITE_PERMISSION, pdTRUE );
+    uxTaskGetSystemState_ExpectAndReturn( pxTaskStatus, arraySize, ( configRUN_TIME_COUNTER_TYPE * ) &ulTaskStatusRunTimeCounter, pdTRUE );
+
+    xResult = MPU_uxTaskGetSystemState( pxTaskStatus, arraySize, ( configRUN_TIME_COUNTER_TYPE * ) &ulTaskStatusRunTimeCounter );
+    TEST_ASSERT_EQUAL( pdTRUE, xResult );
+}
+
+void test_uxTaskGetSystemState_unprivileged_accessibleStatusArrayAndNullRuntime( void )
+{
+    UBaseType_t arraySize = 9U;
+    uint32_t arrayByteSize = arraySize * sizeof( TaskStatus_t );
+
+    unprivilegedTask_raisesAndLowersPrivilege();
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pxTaskStatus, arrayByteSize, tskMPU_WRITE_PERMISSION, pdTRUE );
+    uxTaskGetSystemState_ExpectAndReturn( pxTaskStatus, arraySize, ( configRUN_TIME_COUNTER_TYPE * ) NULL, pdTRUE );
+
+    xResult = MPU_uxTaskGetSystemState( pxTaskStatus, arraySize, ( configRUN_TIME_COUNTER_TYPE * ) NULL );
+    TEST_ASSERT_EQUAL( pdTRUE, xResult );
+}
+
+void test_uxTaskGetSystemState_unprivileged_inaccessibleStatusArray( void )
+{
+    UBaseType_t arraySize = 8U;
+    uint32_t arrayByteSize = arraySize * sizeof( TaskStatus_t );
+
+    unprivilegedTask_raisesAndLowersPrivilege();
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pxTaskStatus, arrayByteSize, tskMPU_WRITE_PERMISSION, pdFALSE );
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( ( configRUN_TIME_COUNTER_TYPE * ) &ulTaskStatusRunTimeCounter, sizeof( configRUN_TIME_COUNTER_TYPE ), tskMPU_WRITE_PERMISSION, pdTRUE );
+
+    xResult = MPU_uxTaskGetSystemState( pxTaskStatus, arraySize, ( configRUN_TIME_COUNTER_TYPE * ) &ulTaskStatusRunTimeCounter );
+    TEST_ASSERT_EQUAL( pdFALSE, xResult );
+}
+
+void test_uxTaskGetSystemState_unprivileged_inaccessibleStatusArrayAndNullRuntime( void )
+{
+    UBaseType_t arraySize = 7U;
+    uint32_t arrayByteSize = arraySize * sizeof( TaskStatus_t );
+
+    unprivilegedTask_raisesAndLowersPrivilege();
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pxTaskStatus, arrayByteSize, tskMPU_WRITE_PERMISSION, pdFALSE );
+
+    xResult = MPU_uxTaskGetSystemState( pxTaskStatus, arraySize, NULL );
+    TEST_ASSERT_EQUAL( pdFALSE, xResult );
+}
+
+void test_uxTaskGetSystemState_unprivileged_inaccessibleRuntime( void )
+{
+    UBaseType_t arraySize = 6U;
+    uint32_t arrayByteSize = arraySize * sizeof( TaskStatus_t );
+
+    unprivilegedTask_raisesAndLowersPrivilege();
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pxTaskStatus, arrayByteSize, tskMPU_WRITE_PERMISSION, pdTRUE );
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( ( configRUN_TIME_COUNTER_TYPE * ) &ulTaskStatusRunTimeCounter, sizeof( configRUN_TIME_COUNTER_TYPE ), tskMPU_WRITE_PERMISSION, pdFALSE );
+
+    xResult = MPU_uxTaskGetSystemState( pxTaskStatus, arraySize, ( configRUN_TIME_COUNTER_TYPE * ) &ulTaskStatusRunTimeCounter );
+    TEST_ASSERT_EQUAL( pdFALSE, xResult );
+}
+
+void test_uxTaskGetSystemState_unprivileged_inaccessibleStatusArrayAndRuntime( void )
+{
+    UBaseType_t arraySize = 5U;
+    uint32_t arrayByteSize = arraySize * sizeof( TaskStatus_t );
+
+    unprivilegedTask_raisesAndLowersPrivilege();
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pxTaskStatus, arrayByteSize, tskMPU_WRITE_PERMISSION, pdFALSE );
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( ( configRUN_TIME_COUNTER_TYPE * ) &ulTaskStatusRunTimeCounter, sizeof( configRUN_TIME_COUNTER_TYPE ), tskMPU_WRITE_PERMISSION, pdFALSE );
+
+    xResult = MPU_uxTaskGetSystemState( pxTaskStatus, arraySize, ( configRUN_TIME_COUNTER_TYPE * ) &ulTaskStatusRunTimeCounter );
+    TEST_ASSERT_EQUAL( pdFALSE, xResult );
+}
+
+void test_uxTaskGetSystemState_privileged( void )
+{
+    UBaseType_t arraySize = 4U;
+
+    privilegedTask_retainsPrivilege();
+
+    uxTaskGetSystemState_ExpectAndReturn( pxTaskStatus, arraySize, ( configRUN_TIME_COUNTER_TYPE * ) NULL, pdTRUE );
+
+    xResult = MPU_uxTaskGetSystemState( pxTaskStatus, arraySize, ( configRUN_TIME_COUNTER_TYPE * ) NULL );
+    TEST_ASSERT_EQUAL( pdTRUE, xResult );
+}
+
+void test_vTaskSetTimeOutState_unprivileged_accessibleBuffer( void )
 {
     unprivilegedTask_raisesAndLowersPrivilege();
     xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pxTimeOut, sizeof( TimeOut_t ), tskMPU_WRITE_PERMISSION, pdTRUE );
@@ -312,7 +429,7 @@ void test_vTaskSetTimeOutState_unprivileged_accessibleBuffer()
     MPU_vTaskSetTimeOutState( pxTimeOut );
 }
 
-void test_vTaskSetTimeOutState_unprivileged_inaccessibleBuffer()
+void test_vTaskSetTimeOutState_unprivileged_inaccessibleBuffer( void )
 {
     unprivilegedTask_raisesAndLowersPrivilege();
     xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pxTimeOut, sizeof( TimeOut_t ), tskMPU_WRITE_PERMISSION, pdFALSE );
@@ -320,7 +437,7 @@ void test_vTaskSetTimeOutState_unprivileged_inaccessibleBuffer()
     MPU_vTaskSetTimeOutState( pxTimeOut );
 }
 
-void test_vTaskSetTimeOutState_privileged()
+void test_vTaskSetTimeOutState_privileged( void )
 {
     privilegedTask_retainsPrivilege();
     vTaskSetTimeOutState_Ignore();
@@ -328,9 +445,10 @@ void test_vTaskSetTimeOutState_privileged()
     MPU_vTaskSetTimeOutState( pxTimeOut );
 }
 
-void test_xTaskCheckForTimeOut_unprivileged_accessibleBuffer()
+void test_xTaskCheckForTimeOut_unprivileged_accessibleTickAndTimeOut( void )
 {
     unprivilegedTask_raisesAndLowersPrivilege();
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pxTimeOut, sizeof( TimeOut_t ), tskMPU_WRITE_PERMISSION, pdTRUE );
     xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( ( TickType_t * const ) &xSingleTick, sizeof( TickType_t ), tskMPU_WRITE_PERMISSION, pdTRUE );
     xTaskCheckForTimeOut_ExpectAndReturn( pxTimeOut, ( TickType_t * const ) &xSingleTick, pdTRUE );
 
@@ -338,16 +456,37 @@ void test_xTaskCheckForTimeOut_unprivileged_accessibleBuffer()
     TEST_ASSERT_EQUAL( pdTRUE, xResult );
 }
 
-void test_xTaskCheckForTimeOut_unprivileged_inaccessibleBuffer()
+void test_xTaskCheckForTimeOut_unprivileged_inaccessibleTick( void )
 {
     unprivilegedTask_raisesAndLowersPrivilege();
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pxTimeOut, sizeof( TimeOut_t ), tskMPU_WRITE_PERMISSION, pdTRUE );
     xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( ( TickType_t * const ) &xSingleTick, sizeof( TickType_t ), tskMPU_WRITE_PERMISSION, pdFALSE );
 
     xResult = MPU_xTaskCheckForTimeOut( pxTimeOut, ( TickType_t * const ) &xSingleTick );
     TEST_ASSERT_EQUAL( pdFALSE, xResult );
 }
 
-void test_xTaskCheckForTimeOut_privileged()
+void test_xTaskCheckForTimeOut_unprivileged_inaccessibleTimeOut( void )
+{
+    unprivilegedTask_raisesAndLowersPrivilege();
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pxTimeOut, sizeof( TimeOut_t ), tskMPU_WRITE_PERMISSION, pdFALSE );
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( ( TickType_t * const ) &xSingleTick, sizeof( TickType_t ), tskMPU_WRITE_PERMISSION, pdTRUE );
+
+    xResult = MPU_xTaskCheckForTimeOut( pxTimeOut, ( TickType_t * const ) &xSingleTick );
+    TEST_ASSERT_EQUAL( pdFALSE, xResult );
+}
+
+void test_xTaskCheckForTimeOut_unprivileged_inaccessibleTickAndTimeOut( void )
+{
+    unprivilegedTask_raisesAndLowersPrivilege();
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pxTimeOut, sizeof( TimeOut_t ), tskMPU_WRITE_PERMISSION, pdFALSE );
+    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( ( TickType_t * const ) &xSingleTick, sizeof( TickType_t ), tskMPU_WRITE_PERMISSION, pdFALSE );
+
+    xResult = MPU_xTaskCheckForTimeOut( pxTimeOut, ( TickType_t * const ) &xSingleTick );
+    TEST_ASSERT_EQUAL( pdFALSE, xResult );
+}
+
+void test_xTaskCheckForTimeOut_privileged( void )
 {
     privilegedTask_retainsPrivilege();
     xTaskCheckForTimeOut_ExpectAndReturn( pxTimeOut, ( TickType_t * const ) &xSingleTick, pdTRUE );
@@ -356,7 +495,7 @@ void test_xTaskCheckForTimeOut_privileged()
     TEST_ASSERT_EQUAL( pdTRUE, xResult );
 }
 
-void test_xTaskGenericNotify_unprivileged_accessibleBuffer()
+void test_xTaskGenericNotify_unprivileged_accessibleBuffer( void )
 {
     unprivilegedTask_raisesAndLowersPrivilege();
     xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( &ulNotificationValue, sizeof( uint32_t ), tskMPU_WRITE_PERMISSION, pdTRUE );
@@ -366,7 +505,18 @@ void test_xTaskGenericNotify_unprivileged_accessibleBuffer()
     TEST_ASSERT_EQUAL( pdTRUE, xResult );
 }
 
-void test_xTaskGenericNotify_unprivileged_inaccessibleBuffer()
+void test_xTaskGenericNotify_unprivileged_nullNotificationValue( void )
+{
+    uint32_t * pulNotificationValue = NULL;
+
+    unprivilegedTask_raisesAndLowersPrivilege();
+    xTaskGenericNotify_ExpectAndReturn( xHandle, 1U, 1U, eSetBits, pulNotificationValue, pdTRUE );
+
+    xResult = MPU_xTaskGenericNotify( xHandle, 1U, 1U, eSetBits, pulNotificationValue );
+    TEST_ASSERT_EQUAL( pdTRUE, xResult );
+}
+
+void test_xTaskGenericNotify_unprivileged_inaccessibleBuffer( void )
 {
     unprivilegedTask_raisesAndLowersPrivilege();
     xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( &ulNotificationValue, sizeof( uint32_t ), tskMPU_WRITE_PERMISSION, pdFALSE );
@@ -375,7 +525,7 @@ void test_xTaskGenericNotify_unprivileged_inaccessibleBuffer()
     TEST_ASSERT_EQUAL( pdFALSE, xResult );
 }
 
-void test_xTaskGenericNotify_privileged()
+void test_xTaskGenericNotify_privileged( void )
 {
     privilegedTask_retainsPrivilege();
     xTaskGenericNotify_ExpectAndReturn( xHandle, 2U, 2U, eSetValueWithoutOverwrite, &ulNotificationValue, pdTRUE );
@@ -384,7 +534,7 @@ void test_xTaskGenericNotify_privileged()
     TEST_ASSERT_EQUAL( pdTRUE, xResult );
 }
 
-void test_xTaskGenericNotifyWait_unprivileged_accessibleBuffer()
+void test_xTaskGenericNotifyWait_unprivileged_accessibleBuffer( void )
 {
     unprivilegedTask_raisesAndLowersPrivilege();
     xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( &ulNotificationValue, sizeof( uint32_t ), tskMPU_WRITE_PERMISSION, pdTRUE );
@@ -394,7 +544,18 @@ void test_xTaskGenericNotifyWait_unprivileged_accessibleBuffer()
     TEST_ASSERT_EQUAL( pdTRUE, xResult );
 }
 
-void test_xTaskGenericNotifyWait_unprivileged_inaccessibleBuffer()
+void test_xTaskGenericNotifyWait_unprivileged_nullNotificationValue( void )
+{
+    uint32_t * pulNotificationValue = NULL;
+
+    unprivilegedTask_raisesAndLowersPrivilege();
+    xTaskGenericNotifyWait_ExpectAndReturn( 1U, 2U, 3U, pulNotificationValue, xSingleTick, pdTRUE );
+
+    xResult = MPU_xTaskGenericNotifyWait( 1U, 2U, 3U, pulNotificationValue, xSingleTick );
+    TEST_ASSERT_EQUAL( pdTRUE, xResult );
+}
+
+void test_xTaskGenericNotifyWait_unprivileged_inaccessibleBuffer( void )
 {
     unprivilegedTask_raisesAndLowersPrivilege();
     xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( &ulNotificationValue, sizeof( uint32_t ), tskMPU_WRITE_PERMISSION, pdFALSE );
@@ -403,7 +564,7 @@ void test_xTaskGenericNotifyWait_unprivileged_inaccessibleBuffer()
     TEST_ASSERT_EQUAL( pdFALSE, xResult );
 }
 
-void test_xTaskGenericNotifyWait_privileged()
+void test_xTaskGenericNotifyWait_privileged( void )
 {
     privilegedTask_retainsPrivilege();
     xTaskGenericNotifyWait_ExpectAndReturn( 1U, 2U, 3U, &ulNotificationValue, xSingleTick, pdTRUE );

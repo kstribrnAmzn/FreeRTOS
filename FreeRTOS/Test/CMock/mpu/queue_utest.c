@@ -91,7 +91,6 @@ void vApplicationDaemonTaskStartupHook( void )
 }
 
 /* ============================= Unity Fixtures ============================= */
-
 void setUp( void )
 {
 }
@@ -100,7 +99,7 @@ void tearDown( void )
 {
 }
 
-void suiteSetUp()
+void suiteSetUp( void )
 {
 }
 
@@ -110,7 +109,6 @@ int suiteTearDown( int numFailures )
 }
 
 /* ==========================  Helper functions =========================== */
-
 static void unprivileged_queueAccess_allowed( QueueHandle_t xQueue,
                                               void * const pvQueueItem,
                                               uint16_t usPermission,
