@@ -3,7 +3,7 @@
   :when_no_prototypes: :warn
   :treat_externs: :include
   :treat_inlines: :include
-  :enforce_strict_ordering: TRUE
+  :enforce_strict_ordering: FALSE
   :plugins:
     - :ignore
     - :ignore_arg

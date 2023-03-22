@@ -45,6 +45,7 @@
 #include "mock_fake_port.h"
 #include "portmacro.h"
 #include "privilege_helper.h"
+#include "mock_task.h"
 #include "mock_queue.h"
 #include "queue.h"
 #include "mock_local_portable.h"
@@ -54,7 +55,7 @@
 /* ===============================  CONSTANTS =============================== */
 static const BaseType_t xFrontCopyPosition = 0;
 static const TickType_t xNoTickWait = 0U;
-static const QueueHandle_t xQueue = ( QueueHandle_t ) 3U; /* Point to any address*/
+static const QueueHandle_t xQueue = ( QueueHandle_t ) 1U; /* Point to first member in pool*/
 static void * const pvQueueItem = NULL;
 
 /* ============================  GLOBAL VARIABLES =========================== */
@@ -101,6 +102,15 @@ void tearDown( void )
 
 void suiteSetUp( void )
 {
+    for (int i = 0; i < configPROTECTED_KERNEL_OBJECT_HANDLE_POOL_SIZE; i++) {
+        vTaskSuspendAll_Ignore();
+        xTaskResumeAll_IgnoreAndReturn(pdFALSE);
+        vFakePortEnterCriticalSection_Ignore();
+        vFakePortExitCriticalSection_Ignore();
+        unprivilegedTask_raisesAndLowersPrivilege();
+        xQueueGenericCreate_ExpectAndReturn(1U, 1U, queueQUEUE_TYPE_BASE, (QueueHandle_t) ( i + 9U ) );
+        MPU_xQueueGenericCreate(1U, 1U, queueQUEUE_TYPE_BASE);
+    }
 }
 
 int suiteTearDown( int numFailures )
@@ -127,8 +137,8 @@ static void unprivileged_queueAccess_allowed( QueueHandle_t xQueue,
  */
 void test_xQueuePeek_unprivileged_acessibleBuffer( void )
 {
-    unprivileged_queueAccess_allowed( xQueue, pvQueueItem, tskMPU_WRITE_PERMISSION, pdTRUE );
-    xQueuePeek_ExpectAndReturn( xQueue, pvQueueItem, xNoTickWait, pdTRUE );
+    unprivileged_queueAccess_allowed( (QueueHandle_t) 9U, pvQueueItem, tskMPU_WRITE_PERMISSION, pdTRUE );
+    xQueuePeek_ExpectAndReturn( (QueueHandle_t) 9U, pvQueueItem, xNoTickWait, pdTRUE );
 
     xResult = MPU_xQueuePeek( xQueue, pvQueueItem, xNoTickWait );
     TEST_ASSERT_EQUAL( pdTRUE, xResult );
@@ -139,7 +149,7 @@ void test_xQueuePeek_unprivileged_acessibleBuffer( void )
  */
 void test_xQueuePeek_unprivileged_inacessibleBuffer( void )
 {
-    unprivileged_queueAccess_allowed( xQueue, pvQueueItem, tskMPU_WRITE_PERMISSION, pdFALSE );
+    unprivileged_queueAccess_allowed( (QueueHandle_t) 9U, pvQueueItem, tskMPU_WRITE_PERMISSION, pdFALSE );
 
     xResult = MPU_xQueuePeek( xQueue, pvQueueItem, xNoTickWait );
     TEST_ASSERT_EQUAL( pdFALSE, xResult );
@@ -151,7 +161,7 @@ void test_xQueuePeek_unprivileged_inacessibleBuffer( void )
 void test_xQueuePeek_privileged( void )
 {
     privilegedTask_retainsPrivilege();
-    xQueuePeek_ExpectAndReturn( xQueue, pvQueueItem, xNoTickWait, pdTRUE );
+    xQueuePeek_ExpectAndReturn( (QueueHandle_t) 9U, pvQueueItem, xNoTickWait, pdTRUE );
 
     xResult = MPU_xQueuePeek( xQueue, pvQueueItem, xNoTickWait );
     TEST_ASSERT_EQUAL( pdTRUE, xResult );
@@ -162,8 +172,8 @@ void test_xQueuePeek_privileged( void )
  */
 void test_xQueueReceive_unprivileged_acessibleBuffer( void )
 {
-    unprivileged_queueAccess_allowed( xQueue, pvQueueItem, tskMPU_WRITE_PERMISSION, pdTRUE );
-    xQueueReceive_ExpectAndReturn( xQueue, pvQueueItem, xNoTickWait, pdTRUE );
+    unprivileged_queueAccess_allowed( (QueueHandle_t) 9U, pvQueueItem, tskMPU_WRITE_PERMISSION, pdTRUE );
+    xQueueReceive_ExpectAndReturn( (QueueHandle_t) 9U, pvQueueItem, xNoTickWait, pdTRUE );
 
     xResult = MPU_xQueueReceive( xQueue, pvQueueItem, xNoTickWait );
     TEST_ASSERT_EQUAL( pdTRUE, xResult );
@@ -174,7 +184,7 @@ void test_xQueueReceive_unprivileged_acessibleBuffer( void )
  */
 void test_xQueueReceive_unprivileged_inacessibleBuffer( void )
 {
-    unprivileged_queueAccess_allowed( xQueue, pvQueueItem, tskMPU_WRITE_PERMISSION, pdFALSE );
+    unprivileged_queueAccess_allowed( (QueueHandle_t) 9U, pvQueueItem, tskMPU_WRITE_PERMISSION, pdFALSE );
 
     xResult = MPU_xQueueReceive( xQueue, pvQueueItem, xNoTickWait );
     TEST_ASSERT_EQUAL( pdFALSE, xResult );
@@ -186,7 +196,7 @@ void test_xQueueReceive_unprivileged_inacessibleBuffer( void )
 void test_xQueueReceive_privileged( void )
 {
     privilegedTask_retainsPrivilege();
-    xQueueReceive_ExpectAndReturn( xQueue, pvQueueItem, xNoTickWait, pdTRUE );
+    xQueueReceive_ExpectAndReturn( (QueueHandle_t) 9U, pvQueueItem, xNoTickWait, pdTRUE );
 
     xResult = MPU_xQueueReceive( xQueue, pvQueueItem, xNoTickWait );
     TEST_ASSERT_EQUAL( pdTRUE, xResult );
@@ -197,8 +207,8 @@ void test_xQueueReceive_privileged( void )
  */
 void test_xQueueSend_unprivileged_acessibleBuffer( void )
 {
-    unprivileged_queueAccess_allowed( xQueue, pvQueueItem, tskMPU_READ_PERMISSION, pdTRUE );
-    xQueueGenericSend_ExpectAndReturn( xQueue, pvQueueItem, xNoTickWait, xFrontCopyPosition, pdTRUE );
+    unprivileged_queueAccess_allowed( (QueueHandle_t) 9U, pvQueueItem, tskMPU_READ_PERMISSION, pdTRUE );
+    xQueueGenericSend_ExpectAndReturn( (QueueHandle_t) 9U, pvQueueItem, xNoTickWait, xFrontCopyPosition, pdTRUE );
 
     xResult = MPU_xQueueGenericSend( xQueue, pvQueueItem, xNoTickWait, xFrontCopyPosition );
     TEST_ASSERT_EQUAL( pdTRUE, xResult );
@@ -209,7 +219,7 @@ void test_xQueueSend_unprivileged_acessibleBuffer( void )
  */
 void test_xQueueSend_unprivileged_inacessibleBuffer( void )
 {
-    unprivileged_queueAccess_allowed( xQueue, pvQueueItem, tskMPU_READ_PERMISSION, pdFALSE );
+    unprivileged_queueAccess_allowed( (QueueHandle_t) 9U, pvQueueItem, tskMPU_READ_PERMISSION, pdFALSE );
 
     xResult = MPU_xQueueGenericSend( xQueue, pvQueueItem, xNoTickWait, xFrontCopyPosition );
     TEST_ASSERT_EQUAL( pdFALSE, xResult );
@@ -221,7 +231,7 @@ void test_xQueueSend_unprivileged_inacessibleBuffer( void )
 void test_xQueueSend_privileged( void )
 {
     privilegedTask_retainsPrivilege();
-    xQueueGenericSend_ExpectAndReturn( xQueue, pvQueueItem, xNoTickWait, xFrontCopyPosition, pdTRUE );
+    xQueueGenericSend_ExpectAndReturn( (QueueHandle_t) 9U, pvQueueItem, xNoTickWait, xFrontCopyPosition, pdTRUE );
 
     xResult = MPU_xQueueGenericSend( xQueue, pvQueueItem, xNoTickWait, xFrontCopyPosition );
     TEST_ASSERT_EQUAL( pdTRUE, xResult );

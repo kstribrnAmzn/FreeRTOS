@@ -41,7 +41,7 @@ TEST_ONLY_CPPFLAGS    :=   -DportUSING_MPU_WRAPPERS=1
 MOCK_ONLY_CPPFLAGS    :=   -DportUSING_MPU_WRAPPERS=0
 
 # List any addiitonal flags needed by the compiler
-CFLAGS              += -Wno-unused-function -Wno-unused-variable
+CFLAGS              += -Wno-unused-function -Wno-unused-variable -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
 
 # Try not to edit beyond this line unless necessary.
 

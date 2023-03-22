@@ -70,9 +70,18 @@ static char * pcBuffer = NULL;
 static uint32_t ulNotificationValue = 0U;
 static TimeOut_t * pxTimeOut = NULL;
 static TaskHandle_t xHandle = NULL;
+static TaskHandle_t xInternalHandle = NULL;
 static TaskStatus_t xTaskStatus;
 static TaskStatus_t * pxTaskStatus = &xTaskStatus;
 static void * pvParameter = NULL;
+
+static BaseType_t xTaskCreateStub(TaskFunction_t pxTaskCode,
+                                    const char * const pcName,
+                                    const configSTACK_DEPTH_TYPE usStackDepth,
+                                    void * const pvParameters,
+                                    UBaseType_t uxPriority,
+                                    TaskHandle_t * const pxCreatedTask,
+                                    int call_count );
 
 /* ==========================  CALLBACK FUNCTIONS =========================== */
 void vApplicationGetIdleTaskMemory( StaticTask_t ** x,
@@ -115,6 +124,15 @@ void tearDown( void )
 
 void suiteSetUp( void )
 {
+    for (int i = 0; i < configPROTECTED_KERNEL_OBJECT_HANDLE_POOL_SIZE; i++) {
+        vTaskSuspendAll_Ignore();
+        xTaskResumeAll_IgnoreAndReturn(pdFALSE);
+        vFakePortEnterCriticalSection_Ignore();
+        vFakePortExitCriticalSection_Ignore();
+        unprivilegedTask_raisesAndLowersPrivilege();
+        xTaskCreate_StubWithCallback( xTaskCreateStub );
+        MPU_xTaskCreate( NULL, "testTask", 100U, NULL, i, &xHandle);
+    }
 }
 
 int suiteTearDown( int numFailures )
@@ -194,9 +212,21 @@ static void taskGetInfoStub( TaskHandle_t xHandle,
     }
 }
 
+static BaseType_t xTaskCreateStub(TaskFunction_t pxTaskCode,
+                            const char * const pcName,
+                            const configSTACK_DEPTH_TYPE usStackDepth,
+                            void * const pvParameters,
+                            UBaseType_t uxPriority,
+                            TaskHandle_t * const pxCreatedTask,
+                            int call_count ) {
+
+    *pxCreatedTask = (TaskHandle_t) uxPriority;
+    return pdPASS;
+}
+
 /* =============================  Test Cases ============================== */
 
-void test_vTaskDelayUntil_unprivileged_accessiblePreviousWakeTime( void )
+void test_xTaskDelayUntil_unprivileged_accessiblePreviousWakeTime( void )
 {
     unprivilegedTask_raisesAndLowersPrivilege();
     xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( &xPreviousWakeTime, sizeof( TickType_t ), tskMPU_WRITE_PERMISSION, pdTRUE );
@@ -207,7 +237,7 @@ void test_vTaskDelayUntil_unprivileged_accessiblePreviousWakeTime( void )
     TEST_ASSERT_EQUAL( pdTRUE, xResult );
 }
 
-void test_vTaskDelayUntil_unprivileged_inaccessiblePreviousWakeTime( void )
+void test_xTaskDelayUntil_unprivileged_inaccessiblePreviousWakeTime( void )
 {
     unprivilegedTask_raisesAndLowersPrivilege();
     xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( &xPreviousWakeTime, sizeof( TickType_t ), tskMPU_WRITE_PERMISSION, pdFALSE );
@@ -216,7 +246,7 @@ void test_vTaskDelayUntil_unprivileged_inaccessiblePreviousWakeTime( void )
     TEST_ASSERT_EQUAL( pdFALSE, xResult );
 }
 
-void test_vTaskDelayUntil_privileged( void )
+void test_xTaskDelayUntil_privileged( void )
 {
     privilegedTask_retainsPrivilege();
     xTaskDelayUntil_ExpectAndReturn( &xPreviousWakeTime, xSingleTick, pdTRUE );
@@ -302,31 +332,6 @@ void test_vTaskGetRunTimeStats_privileged( void )
     vTaskGetRunTimeStats_Ignore();
 
     MPU_vTaskGetRunTimeStats( pcBuffer );
-}
-
-void test_xTaskCallApplicationTaskHook_unprivileged_accessibleParameters( void )
-{
-    unprivilegedTask_raisesAndLowersPrivilege();
-    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pvParameter, 1U, tskMPU_WRITE_PERMISSION | tskMPU_READ_PERMISSION, pdTRUE );
-    xTaskCallApplicationTaskHook_ExpectAndReturn( xHandle, pvParameter, pdTRUE );
-
-    MPU_xTaskCallApplicationTaskHook( xHandle, pvParameter );
-}
-
-void test_xTaskCallApplicationTaskHook_unprivileged_inaccessibleParameters( void )
-{
-    unprivilegedTask_raisesAndLowersPrivilege();
-    xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pvParameter, 1U, tskMPU_WRITE_PERMISSION | tskMPU_READ_PERMISSION, pdFALSE );
-
-    MPU_xTaskCallApplicationTaskHook( xHandle, pvParameter );
-}
-
-void test_xTaskCallApplicationTaskHook_privileged( void )
-{
-    privilegedTask_retainsPrivilege();
-    xTaskCallApplicationTaskHook_ExpectAndReturn( xHandle, pvParameter, pdTRUE );
-
-    MPU_xTaskCallApplicationTaskHook( xHandle, pvParameter );
 }
 
 /* Note - these tests only cover when runtime stats are enabled */

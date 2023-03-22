@@ -46,12 +46,13 @@
 #include "privilege_helper.h"
 #include "mock_stream_buffer.h"
 #include "stream_buffer.h"
+#include "mock_task.h"
 #include "mock_local_portable.h"
 
 #include "mpu_prototypes.h"
 
 /* ===============================  CONSTANTS =============================== */
-static const StreamBufferHandle_t xStreamBufferHandle = NULL;
+static const StreamBufferHandle_t xStreamBufferHandle = ( StreamBufferHandle_t ) 1U;
 static const TickType_t xSingleTickIncrement = 1U;
 static const size_t xDataLength = 10U;
 static void * pvData = NULL;
@@ -100,6 +101,15 @@ void tearDown( void )
 
 void suiteSetUp( void )
 {
+    for (int i = 0; i < configPROTECTED_KERNEL_OBJECT_HANDLE_POOL_SIZE; i++) {
+        vTaskSuspendAll_Ignore();
+        xTaskResumeAll_IgnoreAndReturn(pdFALSE);
+        vFakePortEnterCriticalSection_Ignore();
+        vFakePortExitCriticalSection_Ignore();
+        unprivilegedTask_raisesAndLowersPrivilege();
+        xStreamBufferGenericCreate_ExpectAndReturn( 1U, 1U, pdFALSE, NULL, NULL, ( StreamBufferHandle_t ) (i + 11) );
+        MPU_xStreamBufferGenericCreate( 1U, 1U, pdFALSE, NULL, NULL );
+    }
 }
 
 int suiteTearDown( int numFailures )
@@ -115,8 +125,7 @@ void test_xStreamBufferSend_unprivileged_accessibleData( void )
 {
     unprivilegedTask_raisesAndLowersPrivilege();
     xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pvData, xDataLength, tskMPU_READ_PERMISSION, pdTRUE );
-
-    xStreamBufferSend_ExpectAndReturn( xStreamBufferHandle, pvData, xDataLength, xSingleTickIncrement, xDataLength );
+    xStreamBufferSend_ExpectAndReturn( ( StreamBufferHandle_t ) 11U, pvData, xDataLength, xSingleTickIncrement, xDataLength );
 
     xResult = MPU_xStreamBufferSend( xStreamBufferHandle, pvData, xDataLength, xSingleTickIncrement );
 
@@ -136,7 +145,7 @@ void test_xStreamBufferSend_unprivileged_inaccessibleData( void )
 void test_xStreamBufferSend_privileged( void )
 {
     privilegedTask_retainsPrivilege();
-    xStreamBufferSend_ExpectAndReturn( xStreamBufferHandle, pvData, xDataLength, xSingleTickIncrement, xDataLength );
+    xStreamBufferSend_ExpectAndReturn( ( StreamBufferHandle_t ) 11U, pvData, xDataLength, xSingleTickIncrement, xDataLength );
 
     xResult = MPU_xStreamBufferSend( xStreamBufferHandle, pvData, xDataLength, xSingleTickIncrement );
 
@@ -148,7 +157,7 @@ void test_xStreamBufferReceive_unprivileged_accessibleData( void )
     unprivilegedTask_raisesAndLowersPrivilege();
     xPortIsAuthorizedToAccessBuffer_ExpectAndReturn( pvData, xDataLength, tskMPU_WRITE_PERMISSION, pdTRUE );
 
-    xStreamBufferReceive_ExpectAndReturn( xStreamBufferHandle, pvData, xDataLength, xSingleTickIncrement, xDataLength );
+    xStreamBufferReceive_ExpectAndReturn( ( StreamBufferHandle_t ) 11U, pvData, xDataLength, xSingleTickIncrement, xDataLength );
 
     xResult = MPU_xStreamBufferReceive( xStreamBufferHandle, pvData, xDataLength, xSingleTickIncrement );
 
@@ -168,7 +177,7 @@ void test_xStreamBufferReceive_unprivileged_inaccessibleData( void )
 void test_xStreamBufferReceive_privileged( void )
 {
     privilegedTask_retainsPrivilege();
-    xStreamBufferReceive_ExpectAndReturn( xStreamBufferHandle, pvData, xDataLength, xSingleTickIncrement, xDataLength );
+    xStreamBufferReceive_ExpectAndReturn( ( StreamBufferHandle_t ) 11U, pvData, xDataLength, xSingleTickIncrement, xDataLength );
 
     xResult = MPU_xStreamBufferReceive( xStreamBufferHandle, pvData, xDataLength, xSingleTickIncrement );
 
