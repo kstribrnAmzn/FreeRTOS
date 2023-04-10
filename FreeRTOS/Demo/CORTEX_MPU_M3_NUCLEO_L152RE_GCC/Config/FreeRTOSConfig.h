@@ -153,6 +153,10 @@ header file. */
 /* Ensure that system calls can only be made from kernel code. */
 #define configENFORCE_SYSTEM_CALLS_FROM_KERNEL_ONLY		1
 
+#define configPROTECTED_KERNEL_OBJECT_HANDLE_POOL_SIZE 5
+#define configPROTECTED_TIMER_OBJECT_POOL_SIZE         5
+#define configALLOW_UNPRIVILEGED_CRITICAL_SECTIONS     0
+
 #ifdef __cplusplus
 }
 #endif
