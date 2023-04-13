@@ -347,18 +347,18 @@
             <interw>1</interw>
             <Ropi>0</Ropi>
             <Rwpi>0</Rwpi>
-            <thumb>0</thumb>
+            <thumb>1</thumb>
             <SplitLS>0</SplitLS>
             <SwStkChk>0</SwStkChk>
             <NoWarn>1</NoWarn>
             <uSurpInc>0</uSurpInc>
             <useXO>0</useXO>
-            <ClangAsOpt>4</ClangAsOpt>
+            <ClangAsOpt>1</ClangAsOpt>
             <VariousControls>
-              <MiscControls>--thumb</MiscControls>
+              <MiscControls></MiscControls>
               <Define></Define>
               <Undefine></Undefine>
-              <IncludePath></IncludePath>
+              <IncludePath>..\Nonsecure</IncludePath>
             </VariousControls>
           </Aads>
           <LDads>
@@ -528,6 +528,11 @@
               <FileName>reg_tests.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\reg_tests.h</FilePath>
+            </File>
+            <File>
+              <FileName>reg_tests.s</FileName>
+              <FileType>2</FileType>
+              <FilePath>.\reg_tests.s</FilePath>
             </File>
           </Files>
         </Group>
