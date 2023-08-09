@@ -65,11 +65,13 @@ extern volatile TickType_t xTickCount;
 extern volatile UBaseType_t uxTopReadyPriority;
 extern volatile BaseType_t xSchedulerRunning;
 extern volatile TickType_t xPendedTicks;
-extern volatile BaseType_t xYieldPending;
+extern volatile BaseType_t xYieldPendings[];
+#define xYieldPending    xYieldPendings[ 0 ]
 extern volatile BaseType_t xNumOfOverflows;
 extern UBaseType_t uxTaskNumber;
 extern volatile TickType_t xNextTaskUnblockTime;
-extern TaskHandle_t xIdleTaskHandle;
+extern TaskHandle_t xIdleTaskHandles[];
+#define xIdleTaskHandle    xIdleTaskHandles[ 0 ]
 extern volatile UBaseType_t uxSchedulerSuspended;
 
 /* =============================  DEFINES  ================================== */
@@ -1721,6 +1723,29 @@ void test_eTaskGetState_success_current_tcb( void )
     TEST_ASSERT_EQUAL( eRunning, ret_task_state );
 }
 
+void test_eTaskGetState_success_not_current_tcb_pending_ready( void )
+{
+    TaskHandle_t task_handle;
+
+    create_task_priority = 3;
+    task_handle = create_task();
+    create_task_priority = 5;
+    create_task();
+    ptcb = ( TCB_t * ) task_handle;
+    TEST_ASSERT_NOT_EQUAL( pxCurrentTCB, ptcb );
+    eTaskState ret_task_state;
+    /* Expectations */
+    listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xStateListItem,
+                                             NULL );
+    listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xEventListItem,
+                                             &xPendingReadyList );
+
+    /* API Call */
+    ret_task_state = eTaskGetState( task_handle );
+    /* Validations */
+    TEST_ASSERT_EQUAL( eReady, ret_task_state );
+}
+
 void test_eTaskGetState_success_not_current_tcb_blocked_delayed( void )
 {
     TaskHandle_t task_handle;
@@ -1735,6 +1760,8 @@ void test_eTaskGetState_success_not_current_tcb_blocked_delayed( void )
     /* Expectations */
     listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xStateListItem,
                                              pxDelayedTaskList );
+    listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xEventListItem,
+                                             NULL );
 
     /* API Call */
     ret_task_state = eTaskGetState( task_handle );
@@ -1756,6 +1783,8 @@ void test_eTaskGetState_success_not_current_tcb_blocked_overflow( void )
     /* Expectations */
     listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xStateListItem,
                                              pxOverflowDelayedTaskList );
+    listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xEventListItem,
+                                             NULL );
 
     /* API Call */
     ret_task_state = eTaskGetState( task_handle );
@@ -1777,6 +1806,8 @@ void test_eTaskGetState_success_not_current_tcb_ready( void )
     /* Expectations */
     listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xStateListItem,
                                              &pxReadyTasksLists[ 0 ] );
+    listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xEventListItem,
+                                             NULL );
 
     /* API Call */
     ret_task_state = eTaskGetState( task_handle );
@@ -1800,6 +1831,8 @@ void test_eTaskGetState_success_not_current_tcb_suspended( void )
                                              &xSuspendedTaskList );
     listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xEventListItem,
                                              NULL );
+    listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xEventListItem,
+                                             NULL );
 
     /* API Call */
     ret_task_state = eTaskGetState( task_handle );
@@ -1821,6 +1854,8 @@ void test_eTaskGetState_success_not_current_tcb_deleted( void )
     /* Expectations */
     listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xStateListItem,
                                              &xTasksWaitingTermination );
+    listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xEventListItem,
+                                             NULL );
 
     /* API Call */
     ret_task_state = eTaskGetState( task_handle );
@@ -1842,6 +1877,9 @@ void test_eTaskGetState_success_not_current_tcb_deleted_not_found( void )
     /* Expectations */
     listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xStateListItem,
                                              NULL );
+    listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xEventListItem,
+                                             NULL );
+
     /* API Call */
     ret_task_state = eTaskGetState( task_handle );
     /* Validations */
@@ -1870,6 +1908,8 @@ void test_eTaskGetState_success_not_current_tcb_wait_notif( void )
                                              &xSuspendedTaskList );
     listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xEventListItem,
                                              NULL );
+    listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xEventListItem,
+                                             NULL );
 
     /* API Call */
     ret_task_state = eTaskGetState( task_handle );
@@ -1890,6 +1930,8 @@ void test_eTaskGetState_success_not_current_tcb_blocked( void )
     eTaskState ret_task_state;
     /* Expectations */
     listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xStateListItem,
+                                             &xSuspendedTaskList );
+    listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xEventListItem,
                                              &xSuspendedTaskList );
     listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xEventListItem,
                                              &xSuspendedTaskList );
@@ -3101,6 +3143,7 @@ void test_xTaskAbortDelay_success( void )
     /* eTaskGetState */
     listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xStateListItem,
                                              pxDelayedTaskList );
+    listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xEventListItem, NULL );
     /* back */
     uxListRemove_ExpectAndReturn( &tcb->xStateListItem, pdTRUE );
     listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xEventListItem, NULL );
@@ -3146,6 +3189,8 @@ void test_xTaskAbortDelay_success_notdelayed( void )
     /* Expectations */
     /* eTaskGetState */
     listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xStateListItem,
+                                             pxDelayedTaskList );
+    listLIST_ITEM_CONTAINER_ExpectAndReturn( &ptcb->xEventListItem,
                                              pxDelayedTaskList );
     /* back */
     uxListRemove_ExpectAndReturn( &tcb->xStateListItem, pdTRUE );
@@ -5440,3 +5485,212 @@ void test_ulTaskGenericNotifyValueClear_success_null_handle()
     TEST_ASSERT_EQUAL( 2, task_to_notify->ulNotifiedValue[ uxIndexToClear ] );
 }
 /* ---------- end testing configUSE_TASK_NOTIFICATIONS --------------- */
+
+/* ---------------------- testing xTaskGetStaticBuffers ----------------------*/
+
+/**
+ * @brief Test xTaskGetStaticBuffers with a static task
+ * @details Test xTaskGetStaticBuffers returns the buffers of a statically allocated task
+ * @coverage xTaskGetStaticBuffers
+ */
+void test_xTaskGetStaticBuffers_static_task( void )
+{
+    StackType_t puxStackBuffer[ 300 ];
+    StaticTask_t * pxTaskBuffer = malloc( sizeof( TCB_t ) );
+    TaskFunction_t pxTaskCode = NULL;
+    const char * const pcName = { __FUNCTION__ };
+    const uint32_t ulStackDepth = 300;
+    void * const pvParameters = NULL;
+    UBaseType_t uxPriority = 3;
+    TaskHandle_t xTaskHandle = NULL;
+    StackType_t * puxStackBufferRet = NULL;
+    StaticTask_t * pxTaskBufferRet = NULL;
+
+    memset( puxStackBuffer, 0xa5U, ulStackDepth * sizeof( StackType_t ) );
+
+    vListInitialiseItem_ExpectAnyArgs();
+    vListInitialiseItem_ExpectAnyArgs();
+
+    /* set owner */
+    listSET_LIST_ITEM_VALUE_ExpectAnyArgs();
+    /* set owner */
+    pxPortInitialiseStack_ExpectAnyArgsAndReturn( puxStackBuffer );
+
+    for( int i = ( UBaseType_t ) 0U; i < ( UBaseType_t ) configMAX_PRIORITIES; i++ )
+    {
+        vListInitialise_ExpectAnyArgs();
+    }
+
+    /* Delayed Task List 1 */
+    vListInitialise_ExpectAnyArgs();
+    /* Delayed Task List 2 */
+    vListInitialise_ExpectAnyArgs();
+    /* Pending Ready List */
+    vListInitialise_ExpectAnyArgs();
+    /* INCLUDE_vTaskDelete */
+    vListInitialise_ExpectAnyArgs();
+    /* INCLUDE_vTaskSuspend */
+    vListInitialise_ExpectAnyArgs();
+
+    listINSERT_END_ExpectAnyArgs();
+
+    xTaskHandle = xTaskCreateStatic( pxTaskCode,
+                                     pcName,
+                                     ulStackDepth,
+                                     pvParameters,
+                                     uxPriority,
+                                     puxStackBuffer,
+                                     pxTaskBuffer );
+
+
+    TEST_ASSERT_EQUAL( pdTRUE, xTaskGetStaticBuffers( xTaskHandle, &puxStackBufferRet, &pxTaskBufferRet ) );
+    TEST_ASSERT_EQUAL( &puxStackBuffer, puxStackBufferRet );
+    TEST_ASSERT_EQUAL( pxTaskBuffer, pxTaskBufferRet );
+
+    free( pxTaskBuffer );
+}
+
+/**
+ * @brief Test xTaskGetStaticBuffers with a dynamically allocated TCB but a statically allocated stack.
+ * @details Test xTaskGetStaticBuffers returns the buffers of a statically allocated task
+ * @coverage xTaskGetStaticBuffers
+ */
+void test_xTaskGetStaticBuffers_static_stack_dynamic_tcb( void )
+{
+    StackType_t puxStackBuffer[ 300 ];
+    StaticTask_t * pxTaskBuffer = malloc( sizeof( TCB_t ) );
+    TaskFunction_t pxTaskCode = NULL;
+    const char * const pcName = { __FUNCTION__ };
+    const uint32_t ulStackDepth = 300;
+    void * const pvParameters = NULL;
+    UBaseType_t uxPriority = 3;
+    TaskHandle_t xTaskHandle = NULL;
+    StackType_t * puxStackBufferRet = NULL;
+    StaticTask_t * pxTaskBufferRet = NULL;
+
+    memset( puxStackBuffer, 0xa5U, ulStackDepth * sizeof( StackType_t ) );
+
+    vListInitialiseItem_ExpectAnyArgs();
+    vListInitialiseItem_ExpectAnyArgs();
+
+    /* set owner */
+    listSET_LIST_ITEM_VALUE_ExpectAnyArgs();
+    /* set owner */
+    pxPortInitialiseStack_ExpectAnyArgsAndReturn( puxStackBuffer );
+
+    for( int i = ( UBaseType_t ) 0U; i < ( UBaseType_t ) configMAX_PRIORITIES; i++ )
+    {
+        vListInitialise_ExpectAnyArgs();
+    }
+
+    /* Delayed Task List 1 */
+    vListInitialise_ExpectAnyArgs();
+    /* Delayed Task List 2 */
+    vListInitialise_ExpectAnyArgs();
+    /* Pending Ready List */
+    vListInitialise_ExpectAnyArgs();
+    /* INCLUDE_vTaskDelete */
+    vListInitialise_ExpectAnyArgs();
+    /* INCLUDE_vTaskSuspend */
+    vListInitialise_ExpectAnyArgs();
+
+    listINSERT_END_ExpectAnyArgs();
+
+    xTaskHandle = xTaskCreateStatic( pxTaskCode,
+                                     pcName,
+                                     ulStackDepth,
+                                     pvParameters,
+                                     uxPriority,
+                                     puxStackBuffer,
+                                     pxTaskBuffer );
+
+    /* Workaround since the portUSING_MPU_WRAPPERS == 1 config is not tested */
+    ( ( TCB_t * ) xTaskHandle )->ucStaticallyAllocated = 1;
+
+    TEST_ASSERT_EQUAL( pdTRUE, xTaskGetStaticBuffers( xTaskHandle, &puxStackBufferRet, &pxTaskBufferRet ) );
+    TEST_ASSERT_EQUAL( &puxStackBuffer, puxStackBufferRet );
+    TEST_ASSERT_EQUAL( NULL, pxTaskBufferRet );
+
+    free( pxTaskBuffer );
+}
+
+/**
+ * @brief Test xTaskGetStaticBuffers with a static task as the current task and a null task handle argument.
+ * @details Test xTaskGetStaticBuffers returns the buffers of a statically allocated task
+ * @coverage xTaskGetStaticBuffers
+ */
+void test_xTaskGetStaticBuffers_static_task_null_handle( void )
+{
+    StackType_t puxStackBuffer[ 300 ];
+    StaticTask_t * pxTaskBuffer = malloc( sizeof( TCB_t ) );
+    TaskFunction_t pxTaskCode = NULL;
+    const char * const pcName = { __FUNCTION__ };
+    const uint32_t ulStackDepth = 300;
+    void * const pvParameters = NULL;
+    UBaseType_t uxPriority = 3;
+    TaskHandle_t xTaskHandle = NULL;
+    StackType_t * puxStackBufferRet = NULL;
+    StaticTask_t * pxTaskBufferRet = NULL;
+
+    memset( puxStackBuffer, 0xa5U, ulStackDepth * sizeof( StackType_t ) );
+
+    vListInitialiseItem_ExpectAnyArgs();
+    vListInitialiseItem_ExpectAnyArgs();
+
+    /* set owner */
+    listSET_LIST_ITEM_VALUE_ExpectAnyArgs();
+    /* set owner */
+    pxPortInitialiseStack_ExpectAnyArgsAndReturn( puxStackBuffer );
+
+    for( int i = ( UBaseType_t ) 0U; i < ( UBaseType_t ) configMAX_PRIORITIES; i++ )
+    {
+        vListInitialise_ExpectAnyArgs();
+    }
+
+    /* Delayed Task List 1 */
+    vListInitialise_ExpectAnyArgs();
+    /* Delayed Task List 2 */
+    vListInitialise_ExpectAnyArgs();
+    /* Pending Ready List */
+    vListInitialise_ExpectAnyArgs();
+    /* INCLUDE_vTaskDelete */
+    vListInitialise_ExpectAnyArgs();
+    /* INCLUDE_vTaskSuspend */
+    vListInitialise_ExpectAnyArgs();
+
+    listINSERT_END_ExpectAnyArgs();
+
+    xTaskHandle = xTaskCreateStatic( pxTaskCode,
+                                     pcName,
+                                     ulStackDepth,
+                                     pvParameters,
+                                     uxPriority,
+                                     puxStackBuffer,
+                                     pxTaskBuffer );
+
+    pxCurrentTCB = ( TCB_t * ) xTaskHandle;
+
+    TEST_ASSERT_EQUAL( pdTRUE, xTaskGetStaticBuffers( NULL, &puxStackBufferRet, &pxTaskBufferRet ) );
+    TEST_ASSERT_EQUAL( &puxStackBuffer, puxStackBufferRet );
+    TEST_ASSERT_EQUAL( pxTaskBuffer, pxTaskBufferRet );
+
+    free( pxTaskBuffer );
+}
+
+/**
+ * @brief Test xTaskGetStaticBuffers with a dynamic task
+ * @details Test xTaskGetStaticBuffers returns an error when called on a dynamically allocated task
+ * @coverage xTaskGetStaticBuffers
+ */
+void test_xTaskGetStaticBuffers_dynamic_task( void )
+{
+    StackType_t * puxStackBufferRet = NULL;
+    StaticTask_t * pxTaskBufferRet = NULL;
+    TaskHandle_t taskHandle = create_task();
+
+    TEST_ASSERT_EQUAL( pdFALSE, xTaskGetStaticBuffers( taskHandle, &puxStackBufferRet, &pxTaskBufferRet ) );
+    TEST_ASSERT_EQUAL( NULL, puxStackBufferRet );
+    TEST_ASSERT_EQUAL( NULL, pxTaskBufferRet );
+}
+
+/* -------------------- end testing xTaskGetStaticBuffers --------------------*/
