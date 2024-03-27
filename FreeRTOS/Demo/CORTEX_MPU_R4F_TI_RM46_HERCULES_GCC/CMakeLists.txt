@@ -92,7 +92,7 @@ SET(FREERTOS_DEMO_SOURCES
     ${DEMO_DIR}/source/queue_demo.c
     ${DEMO_DIR}/source/reg_test.c
     ${DEMO_DIR}/source/reg_test_GCC.S
-    ${DEMO_DIR}/source/test_passed_task.c
+    ${DEMO_DIR}/source/test_passed_demo.c
 )
 
 # Source files used for the Board Support Package
