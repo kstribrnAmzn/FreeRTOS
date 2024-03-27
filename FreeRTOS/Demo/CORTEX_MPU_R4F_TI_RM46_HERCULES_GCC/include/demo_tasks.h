@@ -44,8 +44,11 @@
 /** @brief Demo that uses the Task Notification APIs */
 #define NOTIFICATION_DEMO 0x10
 
+/** @brief Demo which prints out a 'test passed' message on loop */
+#define TEST_PASSED_DEMO  0x20
+
 /** @brief Build Register, Queue, MPU, IRQ, and Notification demos */
-#define FULL_DEMO         ( REGISTER_DEMO | QUEUE_DEMO | MPU_DEMO | IRQ_DEMO | NOTIFICATION_DEMO )
+#define FULL_DEMO         ( REGISTER_DEMO | QUEUE_DEMO | MPU_DEMO | IRQ_DEMO | NOTIFICATION_DEMO | TEST_PASSED_DEMO )
 
 /** @brief Bitfield used to select the Demo Tasks to build and run
  *
@@ -103,6 +106,9 @@
 #define demoNOTIFICATION_TASK_PRIORITY \
     ( configTIMER_TASK_PRIORITY + 1UL ) | portPRIVILEGE_BIT
 
+/** @brief Bogus priority for the 'test passed' task. */
+#define demoTEST_PASSED_TASK_PRIORITY      ( tskIDLE_PRIORITY + 1UL )
+
 /* ------------------------------- Register Test Tasks ------------------------------- */
 
 /* @brief ASM function in reg_test_GCC.S that tests proper context swaps. */
@@ -155,6 +161,14 @@ BaseType_t xCreateIRQTestTask( void );
  * pdFAIL if tasks are not created
  */
 BaseType_t xCreateNotificationTestTask( void );
+
+/**
+ * @brief Create a single task printing a test passed message.
+ *
+ * @return pdPASS if tasks are created
+ * pdFAIL if tasks are not created
+ */
+BaseType_t xCreateTestPassedTask( void );
 
 /** @brief Interrupt Handler used for Software Raised Interrupts */
 PRIVILEGED_FUNCTION void vIRQDemoHandler( void );

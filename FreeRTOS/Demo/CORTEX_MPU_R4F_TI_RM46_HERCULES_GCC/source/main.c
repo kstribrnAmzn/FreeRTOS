@@ -150,6 +150,16 @@ int main( void )
     }
 #endif /* ( mainDEMO_TYPE & NOTIFICATION_DEMO ) */
 
+#if( mainDEMO_TYPE & TEST_PASSED_DEMO )
+    {
+        if( pdPASS == xReturn )
+        {
+            sci_print( "Creating the Test Passed Demo Task\r\n" );
+            xReturn = xCreateTestPassedTask();
+        }
+    }
+#endif /* ( mainDEMO_TYPE & TEST_PASSED_DEMO ) */
+
     if( pdPASS == xReturn )
     {
         sci_print( "\r\n--------------------------- Start of FreeRTOS Demos"
