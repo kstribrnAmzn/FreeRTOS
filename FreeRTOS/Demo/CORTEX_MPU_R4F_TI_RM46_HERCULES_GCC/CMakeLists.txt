@@ -50,7 +50,7 @@ INCLUDE(FetchContent)
 FetchContent_Declare(
     FreeRTOS-Kernel
     GIT_REPOSITORY https://github.com/FreeRTOS/FreeRTOS-Kernel.git
-    GIT_TAG main
+    GIT_TAG 345a86d49bca4f278ecb38516f675f3732255267
     SOURCE_DIR "${DEMO_DIR}/../../Source"
     USES_TERMINAL_DOWNLOAD YES
     USES_TERMINAL_UPDATE   YES
