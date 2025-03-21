@@ -294,20 +294,6 @@ void vSetQueueTxLock( QueueHandle_t xQueue,
     *pcTxLock = value;
 }
 
-void setSemaphoreHolder( QueueHandle_t xQueue, TaskHandle_t holder )
-{
-    /* Access recursive call count */
-    StaticQueue_t * pxQueue = ( StaticQueue_t * ) xQueue;
-    pxQueue->u.pvDummy2 = holder;
-}
-
-void setRecursiveMutexCallCount( QueueHandle_t xQueue, UBaseType_t count )
-{
-    /* Access recursive call count */
-    StaticQueue_t * pxQueue = ( StaticQueue_t * ) xQueue;
-    pxQueue->u.uxDummy2 = count;
-}
-
 /**
  * @brief Helper function to call xQueueSend with sequential values
  * @param xQueue The handle to the queue to be tested
