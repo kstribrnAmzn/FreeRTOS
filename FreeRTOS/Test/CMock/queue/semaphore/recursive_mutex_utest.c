@@ -202,6 +202,33 @@ void test_macro_xSemaphoreTakeRecursive_owned_other_task( void )
 }
 
 /**
+ * @brief Test xSemaphoreTakeRecursive on a mutex with the maximum number of recursive takes.
+ * @coverage xQueueGiveMutexRecursive
+ */
+void test_macro_xSemaphoreTakeRecursive_recursive_overflow_current_handle( void )
+{
+    TaskHandle_t xMutexHolder = ( void * ) ( BaseType_t ) getNextMonotonicTestValue();
+
+    SemaphoreHandle_t xSemaphore = xSemaphoreCreateRecursiveMutex();
+    ( ( QueueHandle_t ) xSemaphore ).u.xSemaphore.uxRecursiveCallCount = ( ~ ( UBaseType_t ) 0 );
+    ( ( QueueHandle_t ) xSemaphore ).u.xSemaphore.xMutexHolder = xMutexHolder;
+
+    /* Take the recursive mutex with task handle == xMutexHolder1 */
+    xTaskGetCurrentTaskHandle_ExpectAndReturn( xMutexHolder );
+    pvTaskIncrementMutexHeldCount_ExpectAndReturn( xMutexHolder );
+
+    /* Expect that acquiring the mutex will assert due to the overflow */
+    fakeAssertExpectFail();
+
+    xSemaphoreTakeRecursive( xSemaphore, 0 );
+
+    /* Check that configASSERT was called twice */
+    TEST_ASSERT_EQUAL( true, fakeAssertGetFlagAndClear() );
+
+    vSemaphoreDelete( xSemaphore );
+}
+
+/**
  * @brief Verify that calling xSemaphoreGiveRecursive with a NULL mutex handle causes a configASSERT failure.
  * @coverage xQueueGiveMutexRecursive
  */
