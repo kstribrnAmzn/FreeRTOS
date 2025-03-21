@@ -210,8 +210,8 @@ void test_macro_xSemaphoreTakeRecursive_recursive_overflow_current_handle( void 
     TaskHandle_t xMutexHolder = ( void * ) ( BaseType_t ) getNextMonotonicTestValue();
 
     SemaphoreHandle_t xSemaphore = xSemaphoreCreateRecursiveMutex();
-    ( ( QueueHandle_t ) xSemaphore ).u.xSemaphore.uxRecursiveCallCount = ( ~ ( UBaseType_t ) 0 );
-    ( ( QueueHandle_t ) xSemaphore ).u.xSemaphore.xMutexHolder = xMutexHolder;
+    setRecursiveMutexCallCount( xSemaphore, (~ ( UBaseType_t ) 0 ));
+    setSemaphoreHolder(xSemaphore, xMutexHolder);
 
     /* Take the recursive mutex with task handle == xMutexHolder1 */
     xTaskGetCurrentTaskHandle_ExpectAndReturn( xMutexHolder );

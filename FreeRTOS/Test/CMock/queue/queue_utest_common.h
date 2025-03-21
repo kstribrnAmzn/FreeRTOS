@@ -267,6 +267,9 @@ void queue_common_receive_sequential_from_queue( QueueHandle_t xQueue,
 void queue_common_add_sequential_to_queue( QueueHandle_t xQueue,
                                            uint32_t numberOfItems );
 
+void setSemaphoreHolder( QueueHandle_t xQueue, TaskHandle_t holder );
+void setRecursiveMutexCallCount( QueueHandle_t xQueue, UBaseType_t count );
+
 
 /**
  * @brief Register the stubs contained in td_port.c using the relevant CMock _Stub calls.
