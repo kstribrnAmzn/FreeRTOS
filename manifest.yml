@@ -5,14 +5,14 @@ license: "MIT"
 
 dependencies:
   - name: "FreeRTOS-Kernel"
-    version: "fcc6653"
+    version: "3a22924"
     repository:
       type: "git"
       url: "https://github.com/FreeRTOS/FreeRTOS-Kernel.git"
       path: "FreeRTOS/Source"
 
   - name: "FreeRTOS-Plus-TCP"
-    version: "1f1ffec"
+    version: "af6b379"
     repository:
       type: "git"
       url: "https://github.com/FreeRTOS/FreeRTOS-Plus-TCP.git"
